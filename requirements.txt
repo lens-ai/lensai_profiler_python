@@ -1,3 +1,3 @@
 tensorflow==2.2
-numpy==1.26
+numpy==1.24.4
 datasketches==5.0.2
