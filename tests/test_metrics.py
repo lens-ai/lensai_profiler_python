@@ -1,7 +1,7 @@
 import unittest
 import tensorflow as tf
 import numpy as np
-from lensai_profile_tf.metrics import calculate_brightness, calculate_snr, calculate_sharpness_laplacian, calculate_channel_mean, process_batch, calculate_channel_histogram
+from lensai_profiler.metrics import calculate_brightness, calculate_snr, calculate_sharpness_laplacian, calculate_channel_mean, process_batch, calculate_channel_histogram, calculate_percentiles, get_histogram_sketch
 
 class TestLensaiMetrics(unittest.TestCase):
 
@@ -72,6 +72,35 @@ class TestLensaiMetrics(unittest.TestCase):
         self.assertEqual(channel_mean.shape, (2, images.shape[-1]))
         self.assertEqual(snr.shape, (2, 1))
         self.assertEqual(channel_pixels.shape, (2, 2*2, images.shape[-1]))
+
+
+class TestCalculatePercentiles(unittest.TestCase):
+
+    def test_valid_inputs(self):
+        x = [1, 2, 3, 4, 5]
+        probabilities = [0.1, 0.2, 0.4, 0.2, 0.1]
+        lower, upper = calculate_percentiles(x, probabilities, 0.2, 0.8)
+        self.assertAlmostEqual(lower, 2)
+        self.assertAlmostEqual(upper, 4)
+
+    def test_mismatched_lengths(self):
+        x = [1, 2, 3]
+        probabilities = [0.1, 0.2]
+        with self.assertRaises(ValueError):
+            calculate_percentiles(x, probabilities)
+
+    def test_probabilities_not_summing_to_one(self):
+        x = [1, 2, 3]
+        probabilities = [0.1, 0.2, 0.3]
+        with self.assertRaises(ValueError):
+            calculate_percentiles(x, probabilities)
+
+    def test_edge_case_single_nonzero_probability(self):
+        x = [1, 2, 3]
+        probabilities = [0, 1, 0]
+        lower, upper = calculate_percentiles(x, probabilities, 0.01, 0.99)
+        self.assertEqual(lower, 2)
+        self.assertEqual(upper, 2)
 
 if __name__ == '__main__':
     unittest.main()
