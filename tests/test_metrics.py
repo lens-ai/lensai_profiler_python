@@ -1,7 +1,7 @@
 import unittest
 import tensorflow as tf
 import numpy as np
-from lensai_profiler_tf.metrics import calculate_brightness, calculate_snr, calculate_sharpness_laplacian, calculate_channel_mean, process_batch, calculate_channel_histogram, calculate_percentiles, get_histogram_sketch
+from lensai_profiler.metrics import calculate_brightness, calculate_snr, calculate_sharpness_laplacian, calculate_channel_mean, process_batch, calculate_channel_histogram, calculate_percentiles, get_histogram_sketch
 
 class TestLensaiMetrics(unittest.TestCase):
 

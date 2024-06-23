@@ -4,10 +4,28 @@ import tensorflow as tf
 import numpy as np
 
 def calculate_brightness(image):
+    """
+    Calculate the brightness of an image.
+
+    Args:
+        image: A TensorFlow tensor representing an RGB image.
+
+    Returns:
+        A TensorFlow tensor containing the mean brightness of the image.
+    """
     grayscale = tf.image.rgb_to_grayscale(image)
     return tf.reduce_mean(grayscale)
 
 def calculate_snr(image_tensor):
+    """
+    Calculate the Signal-to-Noise Ratio (SNR) of an image.
+
+    Args:
+        image_tensor: A TensorFlow tensor representing an RGB or RGBA image.
+
+    Returns:
+        A TensorFlow tensor containing the SNR of the image.
+    """
     if image_tensor.shape[-1] == 3:
         grayscale = tf.image.rgb_to_grayscale(image_tensor)
     elif image_tensor.shape[-1] == 4:
@@ -25,11 +43,29 @@ def calculate_snr(image_tensor):
     return snr
 
 def calculate_channel_histogram(image):
+    """
+    Calculate the histogram of the channels of an image.
+
+    Args:
+        image: A TensorFlow tensor representing an image.
+
+    Returns:
+        A TensorFlow tensor containing the histogram of the image channels.
+    """
     num_channels = image.shape[-1]
     channel_pixels = tf.reshape(image, [-1, num_channels])
     return channel_pixels
 
 def calculate_sharpness_laplacian(image):
+    """
+    Calculate the sharpness of an image using the Laplacian operator.
+
+    Args:
+        image: A TensorFlow tensor representing an RGB image.
+
+    Returns:
+        A TensorFlow tensor containing the sharpness of the image.
+    """
     kernel = tf.constant([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=tf.float32)
     kernel = tf.reshape(kernel, [3, 3, 1, 1])
     grayscale = tf.image.rgb_to_grayscale(image)
@@ -38,9 +74,27 @@ def calculate_sharpness_laplacian(image):
     return tf.reduce_mean(tf.abs(sharpness))
 
 def calculate_channel_mean(image):
+    """
+    Calculate the mean of each channel of an image.
+
+    Args:
+        image: A TensorFlow tensor representing an image.
+
+    Returns:
+        A TensorFlow tensor containing the mean of each channel.
+    """
     return tf.reduce_mean(image, axis=[0, 1])
 
 def process_batch(images):
+    """
+    Process a batch of images and calculate various metrics.
+
+    Args:
+        images: A TensorFlow tensor representing a batch of images.
+
+    Returns:
+        A tuple containing the brightness, sharpness, channel mean, SNR, and channel histogram of the batch.
+    """
     brightness = tf.map_fn(calculate_brightness, images, dtype=tf.float32)
     sharpness = tf.map_fn(calculate_sharpness_laplacian, images, dtype=tf.float32)
     channel_mean = tf.map_fn(calculate_channel_mean, images, dtype=tf.float32)
@@ -84,25 +138,24 @@ def calculate_percentiles(x, probabilities, lower_percentile=0.01, upper_percent
     upper_percentile_value = pmf[upper_percentile_idx][0] if upper_percentile_idx < len(pmf) else pmf[-1][0]
     return lower_percentile_value, upper_percentile_value
 
-
 def get_histogram_sketch(sketch, num_splits=30):
     """
     Reads a binary file, deserializes the content, and extracts the PMF.
 
     Args:
-        filename: Path to the binary file.
+        sketch: A probabilistic data structure representing the sketch of the distribution.
         num_splits: Number of splits for the PMF (default: 30).
 
     Returns:
         A tuple containing x-axis values and the PMF.
     """
     if sketch.is_empty():
-        return None,None
+        return None, None
     xmin = sketch.get_min_value()
     try:
         step = (sketch.get_max_value() - xmin) / num_splits
     except ZeroDivisionError:
-        print(f"Error: num_splits should be non-zero for file {filename}")
+        print(f"Error: num_splits should be non-zero")
         return None, None
     if step == 0:
         step = 0.01

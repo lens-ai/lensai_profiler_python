@@ -3,8 +3,8 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='lensai_profiler_tf',
-    version='0.1.0',
+    name='lensai_profiler',
+    version='1.0.0',
     packages=find_packages(),
     install_requires=[
         'tensorflow',
@@ -18,14 +18,14 @@ setup(
     },
     author='Venkata Pydipalli',
     author_email='vsnm.tej@gmail.com',
-    description='A library for computing image metrics and updating KLL sketches using Tensorflow while training.',
+    description='LensAI: A Python Library for Image and Model Profiling with Probabilistic Data Structures using TensorFlow',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
-    url='https://github.com/lens-ai/lensai_training_tensorflow',
+    url='https://github.com/lens-ai/lensai_profiler',
     classifiers=[
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
     ],
-    python_requires='>=3.6',
+    python_requires='>=3.9',
 )
