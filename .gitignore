@@ -3,3 +3,4 @@ dist
 .DS_Store
 lensai_profiler_tf/__py_cache__
 tests/__pycache__
+.pypirc
