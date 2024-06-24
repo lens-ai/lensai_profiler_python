@@ -39,11 +39,10 @@ jobs:
 
     - name: Build Docs
       run: |
-        cd docs
-        make html 
+        sphinx-build -b html docs/source docs/build
     
     - name: Create .nojekyll file
-      run: echo '' > docs/build/html/.nojekyll
+      run: echo '' > docs/build/.nojekyll
 
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
@@ -51,7 +50,7 @@ jobs:
       with:
         publish_branch: gh-pages
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./docs/build/html
+        publish_dir: ./docs/build
         force_orphan: true
 
 
