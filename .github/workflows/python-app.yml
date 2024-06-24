@@ -43,7 +43,7 @@ jobs:
         make html 
     
     - name: Create .nojekyll file
-      run: echo '' > docs/build/.nojekyll
+      run: echo '' > docs/build/html/.nojekyll
 
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
@@ -51,7 +51,7 @@ jobs:
       with:
         publish_branch: gh-pages
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./docs/build
+        publish_dir: ./docs/build/html
         force_orphan: true
 
 
