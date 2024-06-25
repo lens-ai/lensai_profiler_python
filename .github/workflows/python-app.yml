@@ -39,7 +39,7 @@ jobs:
     
     - name: Build Docs
       run: |
-        sphinx-apidoc -o docs/source/ lensai_profiler_python/
+        sphinx-apidoc -o docs/source/ .
         cd docs
         make html
     
