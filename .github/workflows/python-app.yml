@@ -1,4 +1,4 @@
-name: Lenas AI Profile Tensorflow
+name: Lenas AI Profiler Python
 
 on:
   push:
