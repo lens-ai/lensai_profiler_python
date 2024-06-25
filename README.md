@@ -1,4 +1,5 @@
-![Build, Tests](https://github.com/github/docs/actions/workflows/python-app.yml/badge.svg)
+![Build Status](https://github.com/lens-ai/lensai_profiler/actions/workflows/python-app.svg)
+
 
 # Lens AI - Data and Model Monitoring Library for Edge AI Applications
 
