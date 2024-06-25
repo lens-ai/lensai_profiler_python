@@ -1,8 +1,15 @@
+![Build, Tests](https://github.com/github/docs/actions/workflows/python-app.yml/badge.svg)
+
 # Lens AI - Data and Model Monitoring Library for Edge AI Applications
 
 Lensai Profiler TF is a TensorFlow-supported Python library designed to profile data using probabilistic data structures. These profiles are essential for computing model and data drift, ensuring efficient and accurate monitoring of your AI models on edge devices.
 
-![alt text](http://url/to/img.png)
+## The following Lens AI tools 
+- Lens AI Python Profiler
+- Lens AI C++ Profiler
+- Lens AI Monitoring Server
+
+![alt text](https://github.com/lens-ai/lensai_profiler_python/blob/main/blockdiagram.png)
 
 ## Model monitoring pipeline for Edge devices
 
@@ -44,8 +51,15 @@ pip install lensai_profiler_tf
 - Saves the metrics in corresponding files for further analysis
 - Generated the metrics qunatiles that can be used on the edge device for sampling
 - ✨Magic ✨
+
+## Documentation:
+Please refer for more detailed documentation:
+
+[a link](https://lens-ai.github.io/lensai_profiler_python)
+
 ## Usage
 For detailed usage, please refer to the provided iPython notebook. : This gives the metrics distributions and also their quantiles. These are used as the base line when computing data drift.
+
 
 ```python
 import tensorflow as tf
