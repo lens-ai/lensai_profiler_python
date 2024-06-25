@@ -45,7 +45,7 @@ In practice, the KLL sketch offers high accuracy for quantile estimation with si
 ## Installation
 Install the Python package using pip:
 ```sh
-pip install lensai_profiler_tf
+pip install lensai_profiler
 ```
 
 ## Features
@@ -57,7 +57,7 @@ pip install lensai_profiler_tf
 ## Documentation:
 Please refer for more detailed documentation:
 
-[a link](https://lens-ai.github.io/lensai_profiler_python)
+[Documentation](https://lens-ai.github.io/lensai_profiler_python)
 
 ## Usage
 For detailed usage, please refer to the provided iPython notebook. : This gives the metrics distributions and also their quantiles. These are used as the base line when computing data drift.
