@@ -39,8 +39,8 @@ jobs:
     
     - name: Build Docs
       run: |
+        sphinx-apidoc -o docs/source/ lensai_profiler_python/
         cd docs
-        sphinx-build -b html source build
         make html
     
     - name: Create .nojekyll file
