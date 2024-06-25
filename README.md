@@ -1,8 +1,17 @@
+![Build Status](https://github.com/lens-ai/lensai_profiler_python/actions/workflows/python-app.yml/badge.svg)
+
+
 # Lens AI - Data and Model Monitoring Library for Edge AI Applications
 
-Lensai Profiler TF is a TensorFlow-supported Python library designed to profile data using probabilistic data structures. These profiles are essential for computing model and data drift, ensuring efficient and accurate monitoring of your AI models on edge devices.
+Lensai Profiler Python is a  Python library designed to profile data using probabilistic data structures. These profiles are essential for computing model and data drift, ensuring efficient and accurate monitoring of your AI models on edge devices.
+The Pytorch support is planned in the upcoming releases.
 
-![alt text](http://url/to/img.png)
+## The following Lens AI tools 
+- Lens AI Python Profiler
+- Lens AI C++ Profiler
+- Lens AI Monitoring Server
+
+![alt text](https://github.com/lens-ai/lensai_profiler_python/blob/main/blockdiagram.png)
 
 ## Model monitoring pipeline for Edge devices
 
@@ -44,8 +53,15 @@ pip install lensai_profiler_tf
 - Saves the metrics in corresponding files for further analysis
 - Generated the metrics qunatiles that can be used on the edge device for sampling
 - ✨Magic ✨
+
+## Documentation:
+Please refer for more detailed documentation:
+
+[a link](https://lens-ai.github.io/lensai_profiler_python)
+
 ## Usage
 For detailed usage, please refer to the provided iPython notebook. : This gives the metrics distributions and also their quantiles. These are used as the base line when computing data drift.
+
 
 ```python
 import tensorflow as tf
@@ -115,11 +131,11 @@ Thank you for using Lens AI for your edge AI applications. For more information,
 
 
 
-Dillinger uses a number of open source projects to work properly:
+Lens AI Profiler Python uses a number of open source projects to work properly:
 
-- [Datasketches] - HTML enhanced for web apps!
-- [Numpy] - awesome web-based text editor
-- [Scipy] - Markdown parser done right. Fast and easy to extend.
+- [Datasketches]
+- [Numpy]
+- [Scipy]
 
 And of course lens_ai_profiler itself is open source with a [public repository][dill]
  on GitHub.
@@ -143,5 +159,5 @@ Want to contribute? Great!
 
 MIT
 
-**Free Software, Hell Yeah!**
+
 
