@@ -2,18 +2,28 @@ from setuptools import setup, find_packages
 import sys
 
 # Check if TensorFlow or PyTorch is installed
+tf_installed = False
+torch_installed = False
+
 try:
     import tensorflow as tf
+    tf_installed = True
 except ImportError:
-    try:
-        import torch
-    except ImportError:
-        sys.stderr.write(
-            "Error: Either TensorFlow or PyTorch must be installed to use this library.\n"
-            "Please install the package with 'pip install your_package_name[tensorflow]' "
-            "or 'pip install your_package_name[torch]'.\n"
-        )
-        sys.exit(1)
+    pass
+
+try:
+    import torch
+    torch_installed = True
+except ImportError:
+    pass
+
+if not tf_installed and not torch_installed:
+    sys.stderr.write(
+        "Error: Either TensorFlow or PyTorch must be installed to use this library.\n"
+        "Please install the package with 'pip install your_package_name[tensorflow]' "
+        "or 'pip install your_package_name[torch]'.\n"
+    )
+    sys.exit(1)
 
 setup(
     name='lensai_profiler',
@@ -27,8 +37,8 @@ setup(
         'pytest',
     ],
     extras_require={
-        'tensorflow': ['tensorflow'],
-        'torch': ['torch'],
+        'tensorflow': ['tensorflow>=2.0.0'],
+        'torch': ['torch>=1.0.0'],
     },
     entry_points={
         'console_scripts': [
