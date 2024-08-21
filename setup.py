@@ -27,8 +27,8 @@ setup(
         'pytest',
     ],
     extras_require={
-        'tensorflow': ['tensorflow>=2.0.0'],
-        'torch': ['torch>=1.0.0'],
+        'tensorflow': ['tensorflow==2.17.0'],
+        'torch': ['torch==2.3.1+cu121'],
     },
     entry_points={
         'console_scripts': [
