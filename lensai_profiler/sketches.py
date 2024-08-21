@@ -2,43 +2,51 @@ import datasketches
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import numpy as np
-import tensorflow as tf
-import torch
 from .metrics import get_histogram_sketch, calculate_percentiles
+try:
+    import tensorflow as tf
+    TENSORFLOW_AVAILABLE = True
+except ImportError:
+    TENSORFLOW_AVAILABLE = False
+
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
 
 class Sketches:
     """
-    A generic class to manage and update KLL sketches for custom-defined metrics.
+    A class to represent and manage multiple KLL sketches for various metrics.
 
-    Supports both TensorFlow and PyTorch tensors for compatibility with different deep learning frameworks.
+    Attributes:
+        kll_brightness: KLL sketch for brightness values.
+        kll_sharpness: KLL sketch for sharpness values.
+        kll_snr: KLL sketch for signal-to-noise ratio values.
+        kll_channel_mean: List of KLL sketches for channel mean values.
+        kll_pixel_distribution: List of KLL sketches for pixel distribution values.
     """
 
-    def __init__(self):
+    def __init__(self, num_channels):
         """
-        Initialize the Sketches class with an empty registry for custom metrics.
-        """
-        self.sketch_registry = {}
-
-    def register_metric(self, metric_name, num_channels=1):
-        """
-        Register a custom metric by name. Each metric will have a corresponding KLL sketch.
+        Initialize the Sketches class with the specified number of channels.
 
         Args:
-            metric_name (str): The name of the custom metric.
-            num_channels (int): The number of channels for the metric (e.g., 3 for RGB images). Default is 1.
+            num_channels: An integer representing the number of channels.
         """
-        if num_channels == 1:
-            self.sketch_registry[metric_name] = datasketches.kll_floats_sketch()
-        else:
-            self.sketch_registry[metric_name] = [datasketches.kll_floats_sketch() for _ in range(num_channels)]
+        self.kll_brightness = datasketches.kll_floats_sketch()
+        self.kll_sharpness = datasketches.kll_floats_sketch()
+        self.kll_snr = datasketches.kll_floats_sketch()
+        self.kll_channel_mean = [datasketches.kll_floats_sketch() for _ in range(num_channels)]
+        self.kll_pixel_distribution = [datasketches.kll_floats_sketch() for _ in range(num_channels)]
 
     def update_kll_sketch(self, sketch, values):
         """
-        Update a KLL sketch with values from a tensor.
+        Update a given KLL sketch with values.
 
         Args:
-            sketch (datasketches.kll_floats_sketch): The KLL sketch to be updated.
-            values (TensorFlow or PyTorch tensor): The tensor containing values to update the sketch with.
+            sketch: A KLL sketch to update.
+            values: A TensorFlow tensor of values to add to the sketch.
         """
         # Convert TensorFlow or PyTorch tensor to numpy array
         if isinstance(values, tf.Tensor):
@@ -58,87 +66,106 @@ class Sketches:
         except Exception as e:
             print(f"Error updating sketch with values: {values}, Error: {e}")
 
-    def update_sketches(self, **kwargs):
+    def update_sketches(self, brightness, sharpness, channel_mean, snr, channel_pixels):
         """
-        Update all registered KLL sketches in parallel using the provided metric values.
+        Update all KLL sketches with given metric values.
 
         Args:
-            **kwargs: Keyword arguments where the key is the metric name and the value is the corresponding data tensor.
+            brightness: A TensorFlow tensor of brightness values.
+            sharpness: A TensorFlow tensor of sharpness values.
+            channel_mean: A TensorFlow tensor of channel mean values.
+            snr: A TensorFlow tensor of signal-to-noise ratio values.
+            channel_pixels: A TensorFlow tensor of pixel distribution values.
         """
         futures = []
         with ThreadPoolExecutor() as executor:
-            for metric_name, values in kwargs.items():
-                sketch = self.sketch_registry.get(metric_name)
-                if sketch is None:
-                    print(f"Warning: No sketch registered for metric '{metric_name}'")
-                    continue
-
-                if isinstance(sketch, list):
-                    num_channels = len(sketch)
-                    for i in range(num_channels):
-                        futures.append(executor.submit(self.update_kll_sketch, sketch[i], values[:, i]))
-                else:
-                    futures.append(executor.submit(self.update_kll_sketch, sketch, values))
+            futures.append(executor.submit(self.update_kll_sketch, self.kll_brightness, brightness))
+            futures.append(executor.submit(self.update_kll_sketch, self.kll_sharpness, sharpness))
+            futures.append(executor.submit(self.update_kll_sketch, self.kll_snr, snr))
+            num_channels = channel_mean.shape[-1]
+            for i in range(num_channels):
+                futures.append(executor.submit(self.update_kll_sketch, self.kll_channel_mean[i], channel_mean[:, i]))
+                futures.append(executor.submit(self.update_kll_sketch, self.kll_pixel_distribution[i], channel_pixels[:, i]))
             
-            # Wait for all tasks to complete
             for future in as_completed(futures):
-                future.result()  # This will raise exceptions if any occurred during execution
+                future.result()  # Will raise exceptions if any occurred during execution
+
+    def tf_update_sketches(self, brightness, sharpness, channel_mean, snr, channel_pixels):
+        """
+        Update sketches using TensorFlow py_function for compatibility.
+
+        Args:
+            brightness: A TensorFlow tensor of brightness values.
+            sharpness: A TensorFlow tensor of sharpness values.
+            channel_mean: A TensorFlow tensor of channel mean values.
+            snr: A TensorFlow tensor of signal-to-noise ratio values.
+            channel_pixels: A TensorFlow tensor of pixel distribution values.
+        """
+        tf.py_function(self.update_sketches, [brightness, sharpness, channel_mean, snr, channel_pixels], [])
 
     def save_sketches(self, save_path):
         """
-        Save all registered KLL sketches to binary files for later use.
+        Save all KLL sketches to binary files.
 
         Args:
-            save_path (str): Path to the directory where sketches will be saved.
+            save_path: A string representing the path to save the sketches.
         """
         os.makedirs(save_path, exist_ok=True)
-        for metric_name, sketch in self.sketch_registry.items():
-            if isinstance(sketch, list):
-                for i, s in enumerate(sketch):
-                    with open(os.path.join(save_path, f'{metric_name}_{i}.bin'), 'wb') as f:
-                        f.write(s.serialize())
-            else:
-                with open(os.path.join(save_path, f'{metric_name}.bin'), 'wb') as f:
-                    f.write(sketch.serialize())
+        with open(os.path.join(save_path, 'kll_brightness.bin'), 'wb') as f:
+            f.write(self.kll_brightness.serialize())
+        with open(os.path.join(save_path, 'kll_sharpness.bin'), 'wb') as f:
+            f.write(self.kll_sharpness.serialize())
+        with open(os.path.join(save_path, 'kll_snr.bin'), 'wb') as f:
+            f.write(self.kll_snr.serialize())
+        for i, sketch in enumerate(self.kll_channel_mean):
+            with open(os.path.join(save_path, f'kll_channel_mean_{i}.bin'), 'wb') as f:
+                f.write(sketch.serialize())
+        for i, sketch in enumerate(self.kll_pixel_distribution):
+            with open(os.path.join(save_path, f'kll_channel_pixels_{i}.bin'), 'wb') as f:
+                f.write(sketch.serialize())
 
     def load_sketches(self, load_path):
         """
         Load all KLL sketches from binary files.
 
         Args:
-            load_path (str): Path to the directory from which sketches will be loaded.
+            load_path: A string representing the path to load the sketches from.
         """
-        for metric_name, sketch in self.sketch_registry.items():
-            if isinstance(sketch, list):
-                for i in range(len(sketch)):
-                    with open(os.path.join(load_path, f'{metric_name}_{i}.bin'), 'rb') as f:
-                        self.sketch_registry[metric_name][i] = datasketches.kll_floats_sketch.deserialize(f.read())
-            else:
-                with open(os.path.join(load_path, f'{metric_name}.bin'), 'rb') as f:
-                    self.sketch_registry[metric_name] = datasketches.kll_floats_sketch.deserialize(f.read())
+        with open(os.path.join(load_path, 'kll_brightness.bin'), 'rb') as f:
+            self.kll_brightness = datasketches.kll_floats_sketch.deserialize(f.read())
+        with open(os.path.join(load_path, 'kll_sharpness.bin'), 'rb') as f:
+            self.kll_sharpness = datasketches.kll_floats_sketch.deserialize(f.read())
+        with open(os.path.join(load_path, 'kll_snr.bin'), 'rb') as f:
+            self.kll_snr = datasketches.kll_floats_sketch.deserialize(f.read())
+        for i in range(len(self.kll_channel_mean)):
+            with open(os.path.join(load_path, f'kll_channel_mean_{i}.bin'), 'rb') as f:
+                self.kll_channel_mean[i] = datasketches.kll_floats_sketch.deserialize(f.read())
+        for i in range(len(self.kll_pixel_distribution)):
+            with open(os.path.join(load_path, f'kll_channel_pixels_{i}.bin'), 'rb') as f:
+                self.kll_pixel_distribution[i] = datasketches.kll_floats_sketch.deserialize(f.read())
 
     def compute_thresholds(self, lower_percentile=0.1, upper_percentile=0.99):
         """
-        Compute the lower and upper percentile thresholds for all registered KLL sketches.
+        Compute the lower and upper percentile thresholds for all sketches.
 
         Args:
-            lower_percentile (float): Lower percentile value (default is 0.1).
-            upper_percentile (float): Upper percentile value (default is 0.99).
+            lower_percentile: A float representing the lower percentile.
+            upper_percentile: A float representing the upper percentile.
 
         Returns:
-            dict: A dictionary containing the computed thresholds for all sketches.
+            A dictionary containing the lower and upper percentile thresholds for all sketches.
         """
         thresholds = {}
-        for metric_name, sketch in self.sketch_registry.items():
-            if isinstance(sketch, list):
-                thresholds[metric_name] = {}
-                for idx, s in enumerate(sketch):
-                    x, p = get_histogram_sketch(s)
+        for attr in ['kll_brightness', 'kll_sharpness', 'kll_snr', 'kll_channel_mean', 'kll_pixel_distribution']:
+            value = getattr(self, attr)
+            if isinstance(value, list):
+                thresholds[attr] = {}
+                for idx, sketch in enumerate(value):
+                    x, p = get_histogram_sketch(sketch)
                     lower_percentile_value, upper_percentile_value = calculate_percentiles(x, p, lower_percentile, upper_percentile)
-                    thresholds[metric_name][idx] = (lower_percentile_value, upper_percentile_value)
+                    thresholds[attr][idx] = (lower_percentile_value, upper_percentile_value)
             else:
-                x, p = get_histogram_sketch(sketch)
+                x, p = get_histogram_sketch(value)
                 lower_percentile_value, upper_percentile_value = calculate_percentiles(x, p, lower_percentile, upper_percentile)
-                thresholds[metric_name] = (lower_percentile_value, upper_percentile_value)
+                thresholds[attr] = (lower_percentile_value, upper_percentile_value)
         return thresholds
-
