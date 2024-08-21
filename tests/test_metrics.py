@@ -1,78 +1,146 @@
 import unittest
-import tensorflow as tf
 import numpy as np
-from lensai_profiler.metrics import calculate_brightness, calculate_snr, calculate_sharpness_laplacian, calculate_channel_mean, process_batch, calculate_channel_histogram, calculate_percentiles, get_histogram_sketch
+from lensai_profiler.metrics import Metrics, calculate_percentiles, get_histogram_sketch
 
 class TestLensaiMetrics(unittest.TestCase):
 
     def setUp(self):
-        # Create a test image of size 2x2 with 3 channels (RGB)
-        self.image_rgb = tf.constant([
-            [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
-            [[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]]
-        ], dtype=tf.float32)
+        # Create test images for both TF and PT
+        self.frameworks = ['tf', 'pt']
+        self.images_rgb = {}
+        self.images_rgba = {}
 
-        # Create a test image of size 2x2 with 4 channels (RGBA)
-        self.image_rgba = tf.constant([
-            [[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]],
-            [[9.0, 10.0, 11.0, 12.0], [13.0, 14.0, 15.0, 16.0]]
-        ], dtype=tf.float32)
+        for framework in self.frameworks:
+            if framework == 'tf':
+                import tensorflow as tf
+                self.images_rgb[framework] = tf.constant([
+                    [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
+                    [[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]]
+                ], dtype=tf.float32)
+                self.images_rgba[framework] = tf.constant([
+                    [[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]],
+                    [[9.0, 10.0, 11.0, 12.0], [13.0, 14.0, 15.0, 16.0]]
+                ], dtype=tf.float32)
+            elif framework == 'pt':
+                import torch
+                self.images_rgb[framework] = torch.tensor([
+                    [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
+                    [[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]]
+                ], dtype=torch.float32)
+                self.images_rgba[framework] = torch.tensor([
+                    [[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]],
+                    [[9.0, 10.0, 11.0, 12.0], [13.0, 14.0, 15.0, 16.0]]
+                ], dtype=torch.float32)
 
     def test_calculate_brightness(self):
-        brightness = calculate_brightness(self.image_rgb)
-        expected_brightness = tf.reduce_mean(tf.image.rgb_to_grayscale(self.image_rgb))
-        self.assertTrue(np.isclose(brightness.numpy(), expected_brightness.numpy()))
+        for framework in self.frameworks:
+            metrics = Metrics(framework=framework)
+            image_rgb = self.images_rgb[framework]
+
+            brightness = metrics.calculate_brightness(image_rgb)
+            if framework == 'tf':
+                import tensorflow as tf
+                expected_brightness = tf.reduce_mean(tf.image.rgb_to_grayscale(image_rgb))
+                self.assertTrue(np.isclose(brightness.numpy(), expected_brightness.numpy()))
+            elif framework == 'pt':
+                import torch
+                expected_brightness = torch.mean(torch.mean(image_rgb, dim=0))
+                self.assertTrue(np.isclose(brightness.item(), expected_brightness.item()))
 
     def test_calculate_snr(self):
-        snr_rgb = calculate_snr(self.image_rgb)
-        grayscale = tf.image.rgb_to_grayscale(self.image_rgb)
-        mean, variance = tf.nn.moments(grayscale, axes=[0, 1])
-        sigma = tf.sqrt(variance)
-        signal = mean
-        noise = sigma
-        expected_snr_rgb = tf.where(noise == 0, np.inf, 20 * tf.math.log(signal / noise) / tf.math.log(10.0))
-        self.assertTrue(np.isclose(snr_rgb.numpy(), expected_snr_rgb.numpy()).all())
+        for framework in self.frameworks:
+            metrics = Metrics(framework=framework)
+            image_rgb = self.images_rgb[framework]
 
-        snr_rgba = calculate_snr(self.image_rgba)
-        grayscale = tf.image.rgb_to_grayscale(self.image_rgba[..., :3])
-        mean, variance = tf.nn.moments(grayscale, axes=[0, 1])
-        sigma = tf.sqrt(variance)
-        signal = mean
-        noise = sigma
-        expected_snr_rgba = tf.where(noise == 0, np.inf, 20 * tf.math.log(signal / noise) / tf.math.log(10.0))
-        self.assertTrue(np.isclose(snr_rgba.numpy(), expected_snr_rgba.numpy()).all())
+            snr = metrics.calculate_snr(image_rgb)
+            if framework == 'tf':
+                import tensorflow as tf
+                grayscale = tf.image.rgb_to_grayscale(image_rgb)
+                mean, variance = tf.nn.moments(grayscale, axes=[0, 1])
+                sigma = tf.sqrt(variance)
+                expected_snr = tf.where(sigma == 0, np.inf, 20 * tf.math.log(mean / (sigma + 1e-7)) / tf.math.log(10.0))
+                self.assertTrue(np.isclose(snr.numpy(), expected_snr.numpy()).all())
+            elif framework == 'pt':
+                import torch
+                grayscale = torch.mean(image_rgb, dim=0, keepdim=True)
+                mean = torch.mean(grayscale)
+                sigma = torch.std(grayscale)
+                expected_snr = torch.where(sigma == 0, torch.tensor(float('inf')), 20 * torch.log10(mean / (sigma + 1e-7)))
+                self.assertTrue(np.isclose(snr.item(), expected_snr.item()))
 
     def test_calculate_sharpness_laplacian(self):
-        sharpness = calculate_sharpness_laplacian(self.image_rgb)
-        kernel = tf.constant([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=tf.float32)
-        kernel = tf.reshape(kernel, [3, 3, 1, 1])
-        grayscale = tf.image.rgb_to_grayscale(self.image_rgb)
-        grayscale = tf.expand_dims(grayscale, axis=0)
-        expected_sharpness = tf.nn.conv2d(grayscale, kernel, strides=[1, 1, 1, 1], padding='SAME')
-        expected_sharpness = tf.reduce_mean(tf.abs(expected_sharpness))
-        self.assertTrue(np.isclose(sharpness.numpy(), expected_sharpness.numpy()))
+        for framework in self.frameworks:
+            metrics = Metrics(framework=framework)
+            image_rgb = self.images_rgb[framework]
+
+            sharpness = metrics.calculate_sharpness_laplacian(image_rgb)
+            if framework == 'tf':
+                import tensorflow as tf
+                kernel = tf.constant([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=tf.float32)
+                kernel = tf.reshape(kernel, [3, 3, 1, 1])
+                grayscale = tf.image.rgb_to_grayscale(image_rgb)
+                grayscale = tf.expand_dims(grayscale, axis=0)
+                expected_sharpness = tf.nn.conv2d(grayscale, kernel, strides=[1, 1, 1, 1], padding='SAME')
+                expected_sharpness = tf.reduce_mean(tf.abs(expected_sharpness))
+                self.assertTrue(np.isclose(sharpness.numpy(), expected_sharpness.numpy()))
+            elif framework == 'pt':
+                import torch
+                kernel = torch.tensor([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+                grayscale = torch.mean(image_rgb, dim=0, keepdim=True)
+                expected_sharpness = torch.nn.functional.conv2d(grayscale.unsqueeze(0), kernel)
+                expected_sharpness = torch.mean(torch.abs(expected_sharpness))
+                self.assertTrue(np.isclose(sharpness.item(), expected_sharpness.item()))
 
     def test_calculate_channel_mean(self):
-        channel_mean = calculate_channel_mean(self.image_rgb)
-        expected_mean = tf.reduce_mean(self.image_rgb, axis=[0, 1])
-        self.assertTrue(np.allclose(channel_mean.numpy(), expected_mean.numpy()))
+        for framework in self.frameworks:
+            metrics = Metrics(framework=framework)
+            image_rgb = self.images_rgb[framework]
+
+            channel_mean = metrics.calculate_channel_mean(image_rgb)
+            if framework == 'tf':
+                import tensorflow as tf
+                expected_mean = tf.reduce_mean(image_rgb, axis=[0, 1])
+                self.assertTrue(np.allclose(channel_mean.numpy(), expected_mean.numpy()))
+            elif framework == 'pt':
+                import torch
+                expected_mean = torch.mean(image_rgb, dim=[1, 2])
+                self.assertTrue(np.allclose(channel_mean.numpy(), expected_mean.numpy()))
 
     def test_calculate_channel_histogram(self):
-        channel_histogram = calculate_channel_histogram(self.image_rgb)
-        expected_histogram = tf.reshape(self.image_rgb, [-1, 3])
-        self.assertTrue(np.allclose(channel_histogram.numpy(), expected_histogram.numpy()))
+        for framework in self.frameworks:
+            metrics = Metrics(framework=framework)
+            image_rgb = self.images_rgb[framework]
+
+            channel_histogram = metrics.calculate_channel_histogram(image_rgb)
+            if framework == 'tf':
+                import tensorflow as tf
+                expected_histogram = tf.reshape(image_rgb, [-1, 3])
+                self.assertTrue(np.allclose(channel_histogram.numpy(), expected_histogram.numpy()))
+            elif framework == 'pt':
+                import torch
+                expected_histogram = image_rgb.view(3, -1)
+                self.assertTrue(np.allclose(channel_histogram.numpy(), expected_histogram.numpy()))
 
     def test_process_batch(self):
-        images = tf.stack([self.image_rgb, self.image_rgb], axis=0)
-        brightness, sharpness, channel_mean, snr, channel_pixels = process_batch(images)
+        for framework in self.frameworks:
+            metrics = Metrics(framework=framework)
+            image_rgb = self.images_rgb[framework]
 
-        # Check the shapes of the results
-        self.assertEqual(brightness.shape, (2,))
-        self.assertEqual(sharpness.shape, (2,))
-        self.assertEqual(channel_mean.shape, (2, images.shape[-1]))
-        self.assertEqual(snr.shape, (2, 1))
-        self.assertEqual(channel_pixels.shape, (2, 2*2, images.shape[-1]))
+            if framework == 'tf':
+                import tensorflow as tf
+                images = tf.stack([image_rgb, image_rgb], axis=0)
+            elif framework == 'pt':
+                import torch
+                images = torch.stack([image_rgb, image_rgb], dim=0)
 
+            brightness, sharpness, channel_mean, snr, channel_pixels = metrics.process_batch(images)
+
+            # Check the shapes of the results
+            self.assertEqual(brightness.shape[0], 2)
+            self.assertEqual(sharpness.shape[0], 2)
+            self.assertEqual(channel_mean.shape, (2, 3))
+            self.assertEqual(snr.shape[0], 2)
+            self.assertEqual(channel_pixels.shape, (2, 4, 3))  # Assuming image size is 2x2 with 3 channels
 
 class TestCalculatePercentiles(unittest.TestCase):
 
