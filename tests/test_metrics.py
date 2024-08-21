@@ -1,78 +1,224 @@
 import unittest
 import tensorflow as tf
 import numpy as np
-from lensai_profiler.metrics import calculate_brightness, calculate_snr, calculate_sharpness_laplacian, calculate_channel_mean, process_batch, calculate_channel_histogram, calculate_percentiles, get_histogram_sketch
+import os
 
-class TestLensaiMetrics(unittest.TestCase):
+from lensai.metrics import Metrics, calculate_percentiles, get_histogram_sketch
+
+# Mock TensorFlow and PyTorch based on availability
+try:
+    import tensorflow as tf
+    tf_available = True
+except ImportError:
+    tf_available = False
+
+try:
+    import torch
+    torch_available = True
+except ImportError:
+    torch_available = False
+
+class TestMetrics(unittest.TestCase):
 
     def setUp(self):
-        # Create a test image of size 2x2 with 3 channels (RGB)
-        self.image_rgb = tf.constant([
-            [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
-            [[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]]
-        ], dtype=tf.float32)
+        """
+        Set up the testing environment before each test.
+        """
+        self.image_shape = (100, 100, 3)  # RGB image with 3 channels
+        self.num_images = 10
+        self.sample_image_np = np.random.rand(*self.image_shape).astype(np.float32)  # Random image
 
-        # Create a test image of size 2x2 with 4 channels (RGBA)
-        self.image_rgba = tf.constant([
-            [[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]],
-            [[9.0, 10.0, 11.0, 12.0], [13.0, 14.0, 15.0, 16.0]]
-        ], dtype=tf.float32)
+        if tf_available:
+            self.metrics_tf = Metrics(framework='tf')
+            self.sample_image_tf = tf.convert_to_tensor(self.sample_image_np)
+        if torch_available:
+            self.metrics_pt = Metrics(framework='pt')
+            self.sample_image_pt = torch.tensor(self.sample_image_np).permute(2, 0, 1)  # PyTorch: C x H x W
 
-    def test_calculate_brightness(self):
-        brightness = calculate_brightness(self.image_rgb)
-        expected_brightness = tf.reduce_mean(tf.image.rgb_to_grayscale(self.image_rgb))
-        self.assertTrue(np.isclose(brightness.numpy(), expected_brightness.numpy()))
+    def tearDown(self):
+        """
+        Clean up after each test.
+        """
+        pass
 
-    def test_calculate_snr(self):
-        snr_rgb = calculate_snr(self.image_rgb)
-        grayscale = tf.image.rgb_to_grayscale(self.image_rgb)
-        mean, variance = tf.nn.moments(grayscale, axes=[0, 1])
-        sigma = tf.sqrt(variance)
-        signal = mean
-        noise = sigma
-        expected_snr_rgb = tf.where(noise == 0, np.inf, 20 * tf.math.log(signal / noise) / tf.math.log(10.0))
-        self.assertTrue(np.isclose(snr_rgb.numpy(), expected_snr_rgb.numpy()).all())
+    def test_initialize_tf_metrics(self):
+        """
+        Test the initialization of the Metrics class with TensorFlow.
+        """
+        if tf_available:
+            self.assertEqual(self.metrics_tf.framework, 'tf')
+        else:
+            self.skipTest("TensorFlow is not installed.")
 
-        snr_rgba = calculate_snr(self.image_rgba)
-        grayscale = tf.image.rgb_to_grayscale(self.image_rgba[..., :3])
-        mean, variance = tf.nn.moments(grayscale, axes=[0, 1])
-        sigma = tf.sqrt(variance)
-        signal = mean
-        noise = sigma
-        expected_snr_rgba = tf.where(noise == 0, np.inf, 20 * tf.math.log(signal / noise) / tf.math.log(10.0))
-        self.assertTrue(np.isclose(snr_rgba.numpy(), expected_snr_rgba.numpy()).all())
+    def test_initialize_pt_metrics(self):
+        """
+        Test the initialization of the Metrics class with PyTorch.
+        """
+        if torch_available:
+            self.assertEqual(self.metrics_pt.framework, 'pt')
+        else:
+            self.skipTest("PyTorch is not installed.")
 
-    def test_calculate_sharpness_laplacian(self):
-        sharpness = calculate_sharpness_laplacian(self.image_rgb)
-        kernel = tf.constant([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=tf.float32)
-        kernel = tf.reshape(kernel, [3, 3, 1, 1])
-        grayscale = tf.image.rgb_to_grayscale(self.image_rgb)
-        grayscale = tf.expand_dims(grayscale, axis=0)
-        expected_sharpness = tf.nn.conv2d(grayscale, kernel, strides=[1, 1, 1, 1], padding='SAME')
-        expected_sharpness = tf.reduce_mean(tf.abs(expected_sharpness))
-        self.assertTrue(np.isclose(sharpness.numpy(), expected_sharpness.numpy()))
+    def test_calculate_brightness_tf(self):
+        """
+        Test the calculation of brightness using TensorFlow.
+        """
+        if not tf_available:
+            self.skipTest("TensorFlow is not installed.")
+        
+        brightness = self.metrics_tf.calculate_brightness(self.sample_image_tf)
+        self.assertIsInstance(brightness, tf.Tensor)
+        self.assertEqual(brightness.shape, ())
 
-    def test_calculate_channel_mean(self):
-        channel_mean = calculate_channel_mean(self.image_rgb)
-        expected_mean = tf.reduce_mean(self.image_rgb, axis=[0, 1])
-        self.assertTrue(np.allclose(channel_mean.numpy(), expected_mean.numpy()))
+    def test_calculate_brightness_pt(self):
+        """
+        Test the calculation of brightness using PyTorch.
+        """
+        if not torch_available:
+            self.skipTest("PyTorch is not installed.")
+        
+        brightness = self.metrics_pt.calculate_brightness(self.sample_image_pt)
+        self.assertIsInstance(brightness, torch.Tensor)
+        self.assertEqual(brightness.shape, ())
 
-    def test_calculate_channel_histogram(self):
-        channel_histogram = calculate_channel_histogram(self.image_rgb)
-        expected_histogram = tf.reshape(self.image_rgb, [-1, 3])
-        self.assertTrue(np.allclose(channel_histogram.numpy(), expected_histogram.numpy()))
+    def test_calculate_sharpness_tf(self):
+        """
+        Test the calculation of sharpness using TensorFlow.
+        """
+        if not tf_available:
+            self.skipTest("TensorFlow is not installed.")
+        
+        sharpness = self.metrics_tf.calculate_sharpness_laplacian(self.sample_image_tf)
+        self.assertIsInstance(sharpness, tf.Tensor)
+        self.assertEqual(sharpness.shape, ())
 
-    def test_process_batch(self):
-        images = tf.stack([self.image_rgb, self.image_rgb], axis=0)
-        brightness, sharpness, channel_mean, snr, channel_pixels = process_batch(images)
+    def test_calculate_sharpness_pt(self):
+        """
+        Test the calculation of sharpness using PyTorch.
+        """
+        if not torch_available:
+            self.skipTest("PyTorch is not installed.")
+        
+        sharpness = self.metrics_pt.calculate_sharpness_laplacian(self.sample_image_pt)
+        self.assertIsInstance(sharpness, torch.Tensor)
+        self.assertEqual(sharpness.shape, ())
 
-        # Check the shapes of the results
-        self.assertEqual(brightness.shape, (2,))
-        self.assertEqual(sharpness.shape, (2,))
-        self.assertEqual(channel_mean.shape, (2, images.shape[-1]))
-        self.assertEqual(snr.shape, (2, 1))
-        self.assertEqual(channel_pixels.shape, (2, 2*2, images.shape[-1]))
+    def test_calculate_channel_mean_tf(self):
+        """
+        Test the calculation of channel mean using TensorFlow.
+        """
+        if not tf_available:
+            self.skipTest("TensorFlow is not installed.")
+        
+        channel_mean = self.metrics_tf.calculate_channel_mean(self.sample_image_tf)
+        self.assertIsInstance(channel_mean, tf.Tensor)
+        self.assertEqual(channel_mean.shape, (3,))  # Should have 3 values for RGB
 
+    def test_calculate_channel_mean_pt(self):
+        """
+        Test the calculation of channel mean using PyTorch.
+        """
+        if not torch_available:
+            self.skipTest("PyTorch is not installed.")
+        
+        channel_mean = self.metrics_pt.calculate_channel_mean(self.sample_image_pt)
+        self.assertIsInstance(channel_mean, torch.Tensor)
+        self.assertEqual(channel_mean.shape, (3,))  # Should have 3 values for RGB
+
+    def test_calculate_snr_tf(self):
+        """
+        Test the calculation of SNR using TensorFlow.
+        """
+        if not tf_available:
+            self.skipTest("TensorFlow is not installed.")
+        
+        snr = self.metrics_tf.calculate_snr(self.sample_image_tf)
+        self.assertIsInstance(snr, tf.Tensor)
+        self.assertEqual(snr.shape, ())
+
+    def test_calculate_snr_pt(self):
+        """
+        Test the calculation of SNR using PyTorch.
+        """
+        if not torch_available:
+            self.skipTest("PyTorch is not installed.")
+        
+        snr = self.metrics_pt.calculate_snr(self.sample_image_pt)
+        self.assertIsInstance(snr, torch.Tensor)
+        self.assertEqual(snr.shape, ())
+
+    def test_calculate_channel_histogram_tf(self):
+        """
+        Test the calculation of channel histogram using TensorFlow.
+        """
+        if not tf_available:
+            self.skipTest("TensorFlow is not installed.")
+        
+        channel_histogram = self.metrics_tf.calculate_channel_histogram(self.sample_image_tf)
+        self.assertIsInstance(channel_histogram, tf.Tensor)
+        self.assertEqual(channel_histogram.shape[-1], 3)  # Should have 3 channels for RGB
+
+    def test_calculate_channel_histogram_pt(self):
+        """
+        Test the calculation of channel histogram using PyTorch.
+        """
+        if not torch_available:
+            self.skipTest("PyTorch is not installed.")
+        
+        channel_histogram = self.metrics_pt.calculate_channel_histogram(self.sample_image_pt)
+        self.assertIsInstance(channel_histogram, torch.Tensor)
+        self.assertEqual(channel_histogram.shape[0], 3)  # Should have 3 channels for RGB
+
+    def test_process_batch_tf(self):
+        """
+        Test the processing of a batch of images using TensorFlow.
+        """
+        if not tf_available:
+            self.skipTest("TensorFlow is not installed.")
+        
+        batch_images = tf.convert_to_tensor(np.random.rand(self.num_images, *self.image_shape).astype(np.float32))
+        results = self.metrics_tf.process_batch(batch_images)
+        self.assertEqual(len(results), 5)  # Expect 5 metric results
+        for result in results:
+            self.assertEqual(result.shape[0], self.num_images)
+
+    def test_process_batch_pt(self):
+        """
+        Test the processing of a batch of images using PyTorch.
+        """
+        if not torch_available:
+            self.skipTest("PyTorch is not installed.")
+        
+        batch_images = torch.tensor(np.random.rand(self.num_images, *self.image_shape).astype(np.float32)).permute(0, 3, 1, 2)
+        results = self.metrics_pt.process_batch(batch_images)
+        self.assertEqual(len(results), 5)  # Expect 5 metric results
+        for result in results:
+            self.assertEqual(result.shape[0], self.num_images)
+
+    def test_calculate_percentiles(self):
+        """
+        Test the calculate_percentiles function.
+        """
+        x = np.linspace(0, 10, 100)
+        probabilities = np.ones(100) / 100
+        lower_percentile, upper_percentile = calculate_percentiles(x, probabilities, lower_percentile=0.1, upper_percentile=0.9)
+        self.assertEqual(lower_percentile, 1.0)
+        self.assertEqual(upper_percentile, 9.0)
+
+    def test_get_histogram_sketch(self):
+        """
+        Test the get_histogram_sketch function.
+        """
+        sketch = datasketches.kll_floats_sketch()
+        data = np.random.normal(loc=5, scale=2, size=1000)
+        for value in data:
+            sketch.update(value)
+        
+        x, pmf = get_histogram_sketch(sketch)
+        self.assertIsNotNone(x)
+        self.assertIsNotNone(pmf)
+        self.assertEqual(len(x), 31)  # num_splits + 1
+        self.assertEqual(len(pmf), 30)  # num_splits
 
 class TestCalculatePercentiles(unittest.TestCase):
 

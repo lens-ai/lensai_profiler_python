@@ -65,8 +65,8 @@ For detailed usage, please refer to the provided iPython notebook. : This gives 
 
 ```python
 import tensorflow as tf
-from lensai_profiler_tf.metrics import process_batch
-from lensai_profiler_tf.sketches import Sketches
+from lensai_profiler.metrics import process_batch
+from lensai_profiler.sketches import Sketches
 import os
 
 # Download and prepare the dataset
@@ -85,9 +85,18 @@ train_dataset = tf.keras.utils.image_dataset_from_directory(train_dir,
                                                             batch_size=BATCH_SIZE,
                                                             image_size=IMG_SIZE)
 
-# Initialize Lens AI sketches
-num_channels = 3  # Assuming RGB images
-sketches = Sketches(num_channels)
+# Example: Number of channels for RGB images
+num_channels = 3
+
+# Initialize the Sketches object
+sketches = Sketches()
+
+# Register custom metrics
+sketches.register_metric('brightness')
+sketches.register_metric('sharpness')
+sketches.register_metric('channel_mean', num_channels=num_channels)
+sketches.register_metric('snr')
+sketches.register_metric('channel_pixels', num_channels=num_channels)
 
 # Apply map function in parallel to compute metrics
 train_dataset = train_dataset.map(
@@ -97,7 +106,14 @@ train_dataset = train_dataset.map(
 
 # Iterate through the dataset and update the KLL sketches in parallel
 for brightness, sharpness, channel_mean, snr, channel_pixels in train_dataset:
-    sketches.tf_update_sketches(brightness, sharpness, channel_mean, snr, channel_pixels)
+    sketches.tf_update_sketches(
+        brightness=brightness,
+        sharpness=sharpness,
+        channel_mean=channel_mean,
+        snr=snr,
+        channel_pixels=channel_pixels
+    )
+
 
 # Save the KLL sketches to a specified directory
 save_path = '/content/sample_data/'

@@ -1,164 +1,127 @@
-import datasketches
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import numpy as np
-import tensorflow as tf
-import torch
-from .metrics import get_histogram_sketch, calculate_percentiles
+import datasketches
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+try:
+    import tensorflow as tf
+    TENSORFLOW_AVAILABLE = True
+except ImportError:
+    TENSORFLOW_AVAILABLE = False
+
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
 
 class Sketches:
-    """
-    A generic class to manage and update KLL sketches for custom-defined metrics.
-
-    Supports both TensorFlow and PyTorch tensors for compatibility with different deep learning frameworks.
-    """
-
-    def __init__(self):
+    def __init__(self, num_channels, metrics):
         """
-        Initialize the Sketches class with an empty registry for custom metrics.
-        """
-        self.sketch_registry = {}
-
-    def register_metric(self, metric_name, num_channels=1):
-        """
-        Register a custom metric by name. Each metric will have a corresponding KLL sketch.
+        Initialize the Sketches class.
 
         Args:
-            metric_name (str): The name of the custom metric.
-            num_channels (int): The number of channels for the metric (e.g., 3 for RGB images). Default is 1.
+            num_channels: Number of channels in the images (e.g., 3 for RGB).
+            metrics: A dictionary where keys are metric names and values are metric functions.
         """
-        if num_channels == 1:
-            self.sketch_registry[metric_name] = datasketches.kll_floats_sketch()
-        else:
-            self.sketch_registry[metric_name] = [datasketches.kll_floats_sketch() for _ in range(num_channels)]
+        self.kll_sketches = {
+            metric_name: [datasketches.kll_floats_sketch() for _ in range(num_channels)]
+            for metric_name in metrics.keys()
+        }
+        self.metrics = metrics
 
     def update_kll_sketch(self, sketch, values):
         """
-        Update a KLL sketch with values from a tensor.
+        Update the KLL sketch with values.
 
         Args:
-            sketch (datasketches.kll_floats_sketch): The KLL sketch to be updated.
-            values (TensorFlow or PyTorch tensor): The tensor containing values to update the sketch with.
+            sketch: The KLL sketch to update.
+            values: The values to update the sketch with.
         """
-        # Convert TensorFlow or PyTorch tensor to numpy array
-        if isinstance(values, tf.Tensor):
-            values = values.numpy()
-        elif isinstance(values, torch.Tensor):
-            values = values.cpu().numpy()
+        if TENSORFLOW_AVAILABLE and isinstance(values, tf.Tensor):
+            values = values.numpy()  # Convert TensorFlow tensor to numpy array
+        elif TORCH_AVAILABLE and isinstance(values, torch.Tensor):
+            values = values.cpu().numpy()  # Convert PyTorch tensor to numpy array
 
-        # Squeeze the array to ensure it is 1D
-        values = np.squeeze(values)
+        values = np.squeeze(values)  # Ensure the values are 1D
         if len(values.shape) == 0:
-            return  # If it's a scalar, ignore
+            return  # Ignore scalar values
 
         try:
-            # Update the sketch with each value
             for value in values:
                 sketch.update(value)
         except Exception as e:
             print(f"Error updating sketch with values: {values}, Error: {e}")
 
-    def update_sketches(self, **kwargs):
+    def update_sketches(self, **metric_results):
         """
-        Update all registered KLL sketches in parallel using the provided metric values.
+        Update all the sketches using the provided metric results.
 
         Args:
-            **kwargs: Keyword arguments where the key is the metric name and the value is the corresponding data tensor.
+            metric_results: A dictionary containing metric results to be logged.
         """
         futures = []
         with ThreadPoolExecutor() as executor:
-            for metric_name, values in kwargs.items():
-                sketch = self.sketch_registry.get(metric_name)
-                if sketch is None:
-                    print(f"Warning: No sketch registered for metric '{metric_name}'")
-                    continue
+            for metric_name, results in metric_results.items():
+                for i, result in enumerate(results):
+                    futures.append(executor.submit(self.update_kll_sketch, self.kll_sketches[metric_name][i], result))
 
-                if isinstance(sketch, list):
-                    num_channels = len(sketch)
-                    for i in range(num_channels):
-                        futures.append(executor.submit(self.update_kll_sketch, sketch[i], values[:, i]))
-                else:
-                    futures.append(executor.submit(self.update_kll_sketch, sketch, values))
-            
-            # Wait for all tasks to complete
             for future in as_completed(futures):
-                future.result()  # This will raise exceptions if any occurred during execution
+                future.result()  # Will raise exceptions if any occurred during execution
 
-    def tf_update_sketches(self, **kwargs):
+    def tf_update_sketches(self, **metric_results):
         """
-        TensorFlow-specific method to update KLL sketches using tf.py_function.
-
-        Args:
-            **kwargs: Keyword arguments where the key is the metric name and the value is the corresponding TensorFlow tensor.
-        """
-        # Use TensorFlow's py_function to call update_sketches
-        tf.py_function(self.update_sketches, kwargs.values(), [])
-
-    def pt_update_sketches(self, **kwargs):
-        """
-        PyTorch-specific method to update KLL sketches by directly calling update_sketches.
+        TensorFlow wrapper to update sketches using TensorFlow tensors.
 
         Args:
-            **kwargs: Keyword arguments where the key is the metric name and the value is the corresponding PyTorch tensor.
+            metric_results: A dictionary containing metric results to be logged.
         """
-        # Directly call update_sketches with PyTorch tensors
-        self.update_sketches(**kwargs)
+        if not TENSORFLOW_AVAILABLE:
+            raise ImportError("TensorFlow is not available. Install TensorFlow to use this feature.")
+        tf.py_function(self.update_sketches, [], metric_results)
 
     def save_sketches(self, save_path):
         """
-        Save all registered KLL sketches to binary files for later use.
+        Save the sketches to a file.
 
         Args:
-            save_path (str): Path to the directory where sketches will be saved.
+            save_path: The path where the sketches should be saved.
         """
         os.makedirs(save_path, exist_ok=True)
-        for metric_name, sketch in self.sketch_registry.items():
-            if isinstance(sketch, list):
-                for i, s in enumerate(sketch):
-                    with open(os.path.join(save_path, f'{metric_name}_{i}.bin'), 'wb') as f:
-                        f.write(s.serialize())
-            else:
-                with open(os.path.join(save_path, f'{metric_name}.bin'), 'wb') as f:
+        for metric_name, sketches in self.kll_sketches.items():
+            for i, sketch in enumerate(sketches):
+                with open(os.path.join(save_path, f'{metric_name}_{i}.bin'), 'wb') as f:
                     f.write(sketch.serialize())
 
     def load_sketches(self, load_path):
         """
-        Load all KLL sketches from binary files.
+        Load the sketches from a file.
 
         Args:
-            load_path (str): Path to the directory from which sketches will be loaded.
+            load_path: The path where the sketches are stored.
         """
-        for metric_name, sketch in self.sketch_registry.items():
-            if isinstance(sketch, list):
-                for i in range(len(sketch)):
-                    with open(os.path.join(load_path, f'{metric_name}_{i}.bin'), 'rb') as f:
-                        self.sketch_registry[metric_name][i] = datasketches.kll_floats_sketch.deserialize(f.read())
-            else:
-                with open(os.path.join(load_path, f'{metric_name}.bin'), 'rb') as f:
-                    self.sketch_registry[metric_name] = datasketches.kll_floats_sketch.deserialize(f.read())
+        for metric_name, sketches in self.kll_sketches.items():
+            for i in range(len(sketches)):
+                with open(os.path.join(load_path, f'{metric_name}_{i}.bin'), 'rb') as f:
+                    self.kll_sketches[metric_name][i] = datasketches.kll_floats_sketch.deserialize(f.read())
 
     def compute_thresholds(self, lower_percentile=0.1, upper_percentile=0.99):
         """
-        Compute the lower and upper percentile thresholds for all registered KLL sketches.
+        Compute thresholds based on percentiles.
 
         Args:
-            lower_percentile (float): Lower percentile value (default is 0.1).
-            upper_percentile (float): Upper percentile value (default is 0.99).
+            lower_percentile: Lower percentile.
+            upper_percentile: Upper percentile.
 
         Returns:
-            dict: A dictionary containing the computed thresholds for all sketches.
+            A dictionary containing the thresholds for each metric.
         """
         thresholds = {}
-        for metric_name, sketch in self.sketch_registry.items():
-            if isinstance(sketch, list):
-                thresholds[metric_name] = {}
-                for idx, s in enumerate(sketch):
-                    x, p = get_histogram_sketch(s)
-                    lower_percentile_value, upper_percentile_value = calculate_percentiles(x, p, lower_percentile, upper_percentile)
-                    thresholds[metric_name][idx] = (lower_percentile_value, upper_percentile_value)
-            else:
+        for metric_name, sketches in self.kll_sketches.items():
+            thresholds[metric_name] = {}
+            for idx, sketch in enumerate(sketches):
                 x, p = get_histogram_sketch(sketch)
-                lower_percentile_value, upper_percentile_value = calculate_percentiles(x, p, lower_percentile, upper_percentile)
-                thresholds[metric_name] = (lower_percentile_value, upper_percentile_value)
+                lower_value, upper_value = calculate_percentiles(x, p, lower_percentile, upper_percentile)
+                thresholds[metric_name][idx] = (lower_value, upper_value)
         return thresholds
 

@@ -1,94 +1,169 @@
 import unittest
-import os
 import numpy as np
-import tensorflow as tf
-import torch
-from lensai_profiler import Sketches
+import os
+import shutil
+
+# Mock TensorFlow and PyTorch based on availability
+try:
+    import tensorflow as tf
+    tf_available = True
+except ImportError:
+    tf_available = False
+
+try:
+    import torch
+    torch_available = True
+except ImportError:
+    torch_available = False
+
+from lensai.metrics import (
+    calculate_brightness,
+    calculate_sharpness_laplacian,
+    calculate_channel_mean,
+    calculate_snr,
+    calculate_channel_histogram
+)
+from lensai.sketches import Sketches
 
 class TestSketches(unittest.TestCase):
 
     def setUp(self):
-        """Setup common test data and instances."""
-        self.num_channels = 3
-        self.sketches = Sketches(num_channels=self.num_channels)
-        self.save_path = "./sketches_test"
-        os.makedirs(self.save_path, exist_ok=True)
+        """
+        Set up the testing environment before each test.
+        """
+        num_channels = 3
+        self.metrics = {
+            "brightness": calculate_brightness,
+            "sharpness": calculate_sharpness_laplacian,
+            "channel_mean": calculate_channel_mean,
+            "snr": calculate_snr,
+            "channel_histogram": calculate_channel_histogram
+        }
+        self.sketches = Sketches(num_channels=num_channels, metrics=self.metrics)
+
+        # Sample data for testing
+        self.sample_image_np = np.random.rand(100, 100, 3).astype(np.float32)  # Random RGB image
+        if tf_available:
+            self.sample_image_tf = tf.convert_to_tensor(self.sample_image_np)
+        if torch_available:
+            self.sample_image_torch = torch.tensor(self.sample_image_np)
+
+        # Temporary directory for saving sketches
+        self.temp_dir = './temp_sketches'
+        os.makedirs(self.temp_dir, exist_ok=True)
 
     def tearDown(self):
-        """Cleanup any created files and directories."""
-        if os.path.exists(self.save_path):
-            for f in os.listdir(self.save_path):
-                os.remove(os.path.join(self.save_path, f))
-            os.rmdir(self.save_path)
+        """
+        Clean up after each test.
+        """
+        if os.path.exists(self.temp_dir):
+            shutil.rmtree(self.temp_dir)
 
-    def test_initialization(self):
-        """Test that the Sketches class initializes correctly."""
-        self.assertEqual(len(self.sketches.kll_channel_mean), self.num_channels)
-        self.assertEqual(len(self.sketches.kll_pixel_distribution), self.num_channels)
+    def test_initialize_sketches(self):
+        """
+        Test the initialization of the Sketches class.
+        """
+        self.assertEqual(len(self.sketches.kll_sketches), len(self.metrics))
+        for metric_name in self.metrics.keys():
+            self.assertEqual(len(self.sketches.kll_sketches[metric_name]), 3)
 
-    def test_update_kll_sketch_tensorflow(self):
-        """Test updating KLL sketch with TensorFlow tensor data."""
-        tf_values = tf.constant([1.0, 2.0, 3.0], dtype=tf.float32)
-        self.sketches.update_kll_sketch(self.sketches.kll_brightness, tf_values)
-        # Ensure the sketch has been updated
-        self.assertGreater(self.sketches.kll_brightness.get_n(), 0)
+    def test_update_sketches_with_tensorflow(self):
+        """
+        Test updating sketches using TensorFlow tensors.
+        """
+        if not tf_available:
+            self.skipTest("TensorFlow is not installed.")
+        
+        brightness = self.metrics["brightness"](self.sample_image_tf)
+        sharpness = self.metrics["sharpness"](self.sample_image_tf)
+        channel_mean = self.metrics["channel_mean"](self.sample_image_tf)
+        snr = self.metrics["snr"](self.sample_image_tf)
+        channel_histogram = self.metrics["channel_histogram"](self.sample_image_tf)
+        
+        self.sketches.update_sketches(
+            brightness=[brightness],
+            sharpness=[sharpness],
+            channel_mean=[channel_mean],
+            snr=[snr],
+            channel_histogram=[channel_histogram]
+        )
 
-    def test_update_kll_sketch_pytorch(self):
-        """Test updating KLL sketch with PyTorch tensor data."""
-        torch_values = torch.tensor([1.0, 2.0, 3.0], dtype=torch.float32)
-        self.sketches.update_kll_sketch(self.sketches.kll_brightness, torch_values)
-        # Ensure the sketch has been updated
-        self.assertGreater(self.sketches.kll_brightness.get_n(), 0)
+        # Check if sketches were updated (i.e., not empty)
+        for metric_name, sketches in self.sketches.kll_sketches.items():
+            for sketch in sketches:
+                self.assertGreater(sketch.get_n(), 0)
 
-    def test_update_sketches_tensorflow(self):
-        """Test updating all sketches with TensorFlow tensor data."""
-        brightness = tf.constant([1.0, 2.0, 3.0], dtype=tf.float32)
-        sharpness = tf.constant([4.0, 5.0, 6.0], dtype=tf.float32)
-        channel_mean = tf.constant([[1.0, 2.0, 3.0]], dtype=tf.float32)
-        snr = tf.constant([7.0, 8.0, 9.0], dtype=tf.float32)
-        channel_pixels = tf.constant([[10.0, 11.0, 12.0]], dtype=tf.float32)
+    def test_update_sketches_with_pytorch(self):
+        """
+        Test updating sketches using PyTorch tensors.
+        """
+        if not torch_available:
+            self.skipTest("PyTorch is not installed.")
+        
+        brightness = self.metrics["brightness"](self.sample_image_torch)
+        sharpness = self.metrics["sharpness"](self.sample_image_torch)
+        channel_mean = self.metrics["channel_mean"](self.sample_image_torch)
+        snr = self.metrics["snr"](self.sample_image_torch)
+        channel_histogram = self.metrics["channel_histogram"](self.sample_image_torch)
+        
+        self.sketches.update_sketches(
+            brightness=[brightness],
+            sharpness=[sharpness],
+            channel_mean=[channel_mean],
+            snr=[snr],
+            channel_histogram=[channel_histogram]
+        )
 
-        self.sketches.update_sketches(brightness, sharpness, channel_mean, snr, channel_pixels)
-
-        self.assertGreater(self.sketches.kll_brightness.get_n(), 0)
-        self.assertGreater(self.sketches.kll_sharpness.get_n(), 0)
-        self.assertGreater(self.sketches.kll_snr.get_n(), 0)
-        self.assertGreater(self.sketches.kll_channel_mean[0].get_n(), 0)
-        self.assertGreater(self.sketches.kll_pixel_distribution[0].get_n(), 0)
+        # Check if sketches were updated (i.e., not empty)
+        for metric_name, sketches in self.sketches.kll_sketches.items():
+            for sketch in sketches:
+                self.assertGreater(sketch.get_n(), 0)
 
     def test_save_and_load_sketches(self):
-        """Test saving and loading sketches."""
-        # Update sketches with some dummy data
-        brightness = tf.constant([1.0, 2.0, 3.0], dtype=tf.float32)
-        self.sketches.update_kll_sketch(self.sketches.kll_brightness, brightness)
+        """
+        Test saving and loading of sketches.
+        """
+        # Update sketches with random data
+        if tf_available:
+            brightness = self.metrics["brightness"](self.sample_image_tf)
+            sharpness = self.metrics["sharpness"](self.sample_image_tf)
+            self.sketches.update_sketches(
+                brightness=[brightness],
+                sharpness=[sharpness]
+            )
         
-        # Save sketches to disk
-        self.sketches.save_sketches(self.save_path)
+        self.sketches.save_sketches(self.temp_dir)
 
-        # Create a new Sketches instance and load from disk
-        new_sketches = Sketches(num_channels=self.num_channels)
-        new_sketches.load_sketches(self.save_path)
+        # Create a new Sketches object and load the saved sketches
+        new_sketches = Sketches(num_channels=3, metrics=self.metrics)
+        new_sketches.load_sketches(self.temp_dir)
 
-        # Check if the loaded sketch is the same as the saved one
-        self.assertEqual(new_sketches.kll_brightness.get_n(), self.sketches.kll_brightness.get_n())
+        # Check that the sketches are loaded correctly
+        for metric_name in self.metrics.keys():
+            for i in range(3):
+                self.assertEqual(self.sketches.kll_sketches[metric_name][i].get_n(), 
+                                 new_sketches.kll_sketches[metric_name][i].get_n())
 
     def test_compute_thresholds(self):
-        """Test the computation of thresholds."""
-        brightness = tf.constant([1.0, 2.0, 3.0, 4.0, 5.0], dtype=tf.float32)
-        self.sketches.update_kll_sketch(self.sketches.kll_brightness, brightness)
+        """
+        Test the computation of thresholds based on percentiles.
+        """
+        # Update sketches with random data
+        if tf_available:
+            brightness = self.metrics["brightness"](self.sample_image_tf)
+            sharpness = self.metrics["sharpness"](self.sample_image_tf)
+            self.sketches.update_sketches(
+                brightness=[brightness],
+                sharpness=[sharpness]
+            )
 
-        thresholds = self.sketches.compute_thresholds(lower_percentile=0.2, upper_percentile=0.8)
+        thresholds = self.sketches.compute_thresholds(lower_percentile=0.1, upper_percentile=0.9)
 
-        self.assertIn('kll_brightness', thresholds)
-        self.assertEqual(len(thresholds['kll_brightness']), 2)
+        # Verify that thresholds are calculated and are within expected ranges
+        for metric_name, channel_thresholds in thresholds.items():
+            for _, (lower, upper) in channel_thresholds.items():
+                self.assertTrue(0 <= lower <= upper <= 1)
 
-    def test_custom_metric_logging(self):
-        """Test logging a custom metric like embedding vectors."""
-        embeddings = torch.tensor([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]], dtype=torch.float32)
-        self.sketches.update_kll_sketch(self.sketches.kll_brightness, embeddings)
-
-        self.assertGreater(self.sketches.kll_brightness.get_n(), 0)
 
 if __name__ == '__main__':
     unittest.main()
-
