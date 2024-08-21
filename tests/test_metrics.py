@@ -3,7 +3,7 @@ import tensorflow as tf
 import numpy as np
 import os
 
-from lensai.metrics import Metrics, calculate_percentiles, get_histogram_sketch
+from lensai_profiler.metrics import Metrics, calculate_percentiles, get_histogram_sketch
 
 # Mock TensorFlow and PyTorch based on availability
 try:

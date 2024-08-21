@@ -16,14 +16,14 @@ try:
 except ImportError:
     torch_available = False
 
-from lensai.metrics import (
+from lensai_profiler.metrics import (
     calculate_brightness,
     calculate_sharpness_laplacian,
     calculate_channel_mean,
     calculate_snr,
     calculate_channel_histogram
 )
-from lensai.sketches import Sketches
+from lensai_profiler.sketches import Sketches
 
 class TestSketches(unittest.TestCase):
 
