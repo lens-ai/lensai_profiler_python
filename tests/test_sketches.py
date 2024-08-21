@@ -16,14 +16,9 @@ try:
 except ImportError:
     torch_available = False
 
-from lensai_profiler.metrics import (
-    calculate_brightness,
-    calculate_sharpness_laplacian,
-    calculate_channel_mean,
-    calculate_snr,
-    calculate_channel_histogram
-)
+from lensai_profiler import Metrics, calculate_percentiles, get_histogram_sketch
 from lensai_profiler.sketches import Sketches
+
 
 class TestSketches(unittest.TestCase):
 
@@ -32,14 +27,12 @@ class TestSketches(unittest.TestCase):
         Set up the testing environment before each test.
         """
         num_channels = 3
-        self.metrics = {
-            "brightness": calculate_brightness,
-            "sharpness": calculate_sharpness_laplacian,
-            "channel_mean": calculate_channel_mean,
-            "snr": calculate_snr,
-            "channel_histogram": calculate_channel_histogram
-        }
-        self.sketches = Sketches(num_channels=num_channels, metrics=self.metrics)
+
+        # Instantiate Metrics class with TensorFlow or PyTorch as available
+        self.metrics_tf = Metrics(framework='tf') if tf_available else None
+        self.metrics_pt = Metrics(framework='pt') if torch_available else None
+        
+        self.sketches = Sketches(num_channels=num_channels, metrics={})
 
         # Sample data for testing
         self.sample_image_np = np.random.rand(100, 100, 3).astype(np.float32)  # Random RGB image
@@ -63,8 +56,18 @@ class TestSketches(unittest.TestCase):
         """
         Test the initialization of the Sketches class.
         """
-        self.assertEqual(len(self.sketches.kll_sketches), len(self.metrics))
-        for metric_name in self.metrics.keys():
+        # Initialize Sketches with metrics functions
+        metrics = {
+            "brightness": self.metrics_tf.calculate_brightness if self.metrics_tf else None,
+            "sharpness": self.metrics_tf.calculate_sharpness_laplacian if self.metrics_tf else None,
+            "channel_mean": self.metrics_tf.calculate_channel_mean if self.metrics_tf else None,
+            "snr": self.metrics_tf.calculate_snr if self.metrics_tf else None,
+            "channel_histogram": self.metrics_tf.calculate_channel_histogram if self.metrics_tf else None
+        }
+        self.sketches = Sketches(num_channels=3, metrics=metrics)
+
+        self.assertEqual(len(self.sketches.kll_sketches), len(metrics))
+        for metric_name in metrics.keys():
             self.assertEqual(len(self.sketches.kll_sketches[metric_name]), 3)
 
     def test_update_sketches_with_tensorflow(self):
@@ -74,11 +77,11 @@ class TestSketches(unittest.TestCase):
         if not tf_available:
             self.skipTest("TensorFlow is not installed.")
         
-        brightness = self.metrics["brightness"](self.sample_image_tf)
-        sharpness = self.metrics["sharpness"](self.sample_image_tf)
-        channel_mean = self.metrics["channel_mean"](self.sample_image_tf)
-        snr = self.metrics["snr"](self.sample_image_tf)
-        channel_histogram = self.metrics["channel_histogram"](self.sample_image_tf)
+        brightness = self.metrics_tf.calculate_brightness(self.sample_image_tf)
+        sharpness = self.metrics_tf.calculate_sharpness_laplacian(self.sample_image_tf)
+        channel_mean = self.metrics_tf.calculate_channel_mean(self.sample_image_tf)
+        snr = self.metrics_tf.calculate_snr(self.sample_image_tf)
+        channel_histogram = self.metrics_tf.calculate_channel_histogram(self.sample_image_tf)
         
         self.sketches.update_sketches(
             brightness=[brightness],
@@ -100,11 +103,11 @@ class TestSketches(unittest.TestCase):
         if not torch_available:
             self.skipTest("PyTorch is not installed.")
         
-        brightness = self.metrics["brightness"](self.sample_image_torch)
-        sharpness = self.metrics["sharpness"](self.sample_image_torch)
-        channel_mean = self.metrics["channel_mean"](self.sample_image_torch)
-        snr = self.metrics["snr"](self.sample_image_torch)
-        channel_histogram = self.metrics["channel_histogram"](self.sample_image_torch)
+        brightness = self.metrics_pt.calculate_brightness(self.sample_image_torch)
+        sharpness = self.metrics_pt.calculate_sharpness_laplacian(self.sample_image_torch)
+        channel_mean = self.metrics_pt.calculate_channel_mean(self.sample_image_torch)
+        snr = self.metrics_pt.calculate_snr(self.sample_image_torch)
+        channel_histogram = self.metrics_pt.calculate_channel_histogram(self.sample_image_torch)
         
         self.sketches.update_sketches(
             brightness=[brightness],
@@ -125,8 +128,8 @@ class TestSketches(unittest.TestCase):
         """
         # Update sketches with random data
         if tf_available:
-            brightness = self.metrics["brightness"](self.sample_image_tf)
-            sharpness = self.metrics["sharpness"](self.sample_image_tf)
+            brightness = self.metrics_tf.calculate_brightness(self.sample_image_tf)
+            sharpness = self.metrics_tf.calculate_sharpness_laplacian(self.sample_image_tf)
             self.sketches.update_sketches(
                 brightness=[brightness],
                 sharpness=[sharpness]
@@ -135,11 +138,11 @@ class TestSketches(unittest.TestCase):
         self.sketches.save_sketches(self.temp_dir)
 
         # Create a new Sketches object and load the saved sketches
-        new_sketches = Sketches(num_channels=3, metrics=self.metrics)
+        new_sketches = Sketches(num_channels=3, metrics={})
         new_sketches.load_sketches(self.temp_dir)
 
         # Check that the sketches are loaded correctly
-        for metric_name in self.metrics.keys():
+        for metric_name in self.sketches.kll_sketches.keys():
             for i in range(3):
                 self.assertEqual(self.sketches.kll_sketches[metric_name][i].get_n(), 
                                  new_sketches.kll_sketches[metric_name][i].get_n())
@@ -150,8 +153,8 @@ class TestSketches(unittest.TestCase):
         """
         # Update sketches with random data
         if tf_available:
-            brightness = self.metrics["brightness"](self.sample_image_tf)
-            sharpness = self.metrics["sharpness"](self.sample_image_tf)
+            brightness = self.metrics_tf.calculate_brightness(self.sample_image_tf)
+            sharpness = self.metrics_tf.calculate_sharpness_laplacian(self.sample_image_tf)
             self.sketches.update_sketches(
                 brightness=[brightness],
                 sharpness=[sharpness]
@@ -167,3 +170,4 @@ class TestSketches(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
