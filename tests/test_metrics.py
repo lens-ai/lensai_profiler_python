@@ -2,6 +2,7 @@ import unittest
 import tensorflow as tf
 import numpy as np
 import os
+import datasketches
 
 from lensai_profiler.metrics import Metrics, calculate_percentiles, get_histogram_sketch
 
