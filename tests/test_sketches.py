@@ -33,7 +33,7 @@ class TestSketches(unittest.TestCase):
         tf_values = tf.constant([1.0, 2.0, 3.0], dtype=tf.float32)
         self.sketches.update_kll_sketch(self.sketches.sketch_registry['brightness'], tf_values)
         # Ensure the sketch has been updated
-        self.assertGreater(self.sketches.sketch_registry['brightness'].get_n(), 0)
+        self.assertGreater(self.sketches.sketch_registry['brightness'].get_num_retained(), 0)
 
     def test_update_kll_sketch_pytorch(self):
         """Test updating KLL sketch with PyTorch tensor data."""
@@ -41,7 +41,7 @@ class TestSketches(unittest.TestCase):
         torch_values = torch.tensor([1.0, 2.0, 3.0], dtype=torch.float32)
         self.sketches.update_kll_sketch(self.sketches.sketch_registry['brightness'], torch_values)
         # Ensure the sketch has been updated
-        self.assertGreater(self.sketches.sketch_registry['brightness'].get_n(), 0)
+        self.assertGreater(self.sketches.sketch_registry['brightness'].get_num_retained(), 0)
 
     def test_update_sketches_tensorflow(self):
         """Test updating all sketches with TensorFlow tensor data."""
@@ -59,11 +59,11 @@ class TestSketches(unittest.TestCase):
 
         self.sketches.update_sketches(brightness=brightness, sharpness=sharpness, channel_mean=channel_mean, snr=snr, channel_pixels=channel_pixels)
 
-        self.assertGreater(self.sketches.sketch_registry['brightness'].get_n(), 0)
-        self.assertGreater(self.sketches.sketch_registry['sharpness'].get_n(), 0)
-        self.assertGreater(self.sketches.sketch_registry['snr'].get_n(), 0)
-        self.assertGreater(self.sketches.sketch_registry['channel_mean'][0].get_n(), 0)
-        self.assertGreater(self.sketches.sketch_registry['channel_pixels'][0].get_n(), 0)
+        self.assertGreater(self.sketches.sketch_registry['brightness'].get_num_retained(), 0)
+        self.assertGreater(self.sketches.sketch_registry['sharpness'].get_num_retained(), 0)
+        self.assertGreater(self.sketches.sketch_registry['snr'].get_num_retained(), 0)
+        self.assertGreater(self.sketches.sketch_registry['channel_mean'][0].get_num_retained(), 0)
+        self.assertGreater(self.sketches.sketch_registry['channel_pixels'][0].get_num_retained(), 0)
 
     def test_save_and_load_sketches(self):
         """Test saving and loading sketches."""
@@ -81,7 +81,7 @@ class TestSketches(unittest.TestCase):
         new_sketches.load_sketches(self.save_path)
 
         # Check if the loaded sketch is the same as the saved one
-        self.assertEqual(new_sketches.sketch_registry['brightness'].get_n(), self.sketches.sketch_registry['brightness'].get_n())
+        self.assertEqual(new_sketches.sketch_registry['brightness'].get_num_retained(), self.sketches.sketch_registry['brightness'].get_num_retained())
 
     def test_compute_thresholds(self):
         """Test the computation of thresholds."""
@@ -100,7 +100,7 @@ class TestSketches(unittest.TestCase):
         embeddings = torch.tensor([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]], dtype=torch.float32)
         self.sketches.update_kll_sketch(self.sketches.sketch_registry['embeddings'], embeddings)
 
-        self.assertGreater(self.sketches.sketch_registry['embeddings'].get_n(), 0)
+        self.assertGreater(self.sketches.sketch_registry['embeddings'].get_num_retained(), 0)
 
 if __name__ == '__main__':
     unittest.main()
