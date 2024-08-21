@@ -30,8 +30,8 @@ setup(
     version='1.1.0',
     packages=find_packages(),
     install_requires=[
-        'numpy',
-        'datasketches<5.0.0',
+        'numpy==1.24.3',
+        'datasketches==5.0.1',
         # Other core dependencies
     ],tests_require=[
         'pytest',
