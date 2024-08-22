@@ -97,16 +97,21 @@ class TestLensaiMetrics(unittest.TestCase):
 
             elif framework == 'pt':
                 import torch
-                kernel = torch.tensor([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=torch.float32).unsqueeze(0).unsqueeze(0)
-                # Kernel shape for PyTorch [out_channels, in_channels, height, width]
-            
-                if image_rgb.size(1) != 1:  # Check if the image is not grayscale
+                # Define the Laplacian kernel for edge detection
+                kernel = torch.tensor([[-1, -1, -1],
+                                       [-1,  8, -1],
+                                       [-1, -1, -1]], dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+                # Kernel shape: [out_channels, in_channels, height, width]
+
+                if image_rgb.size(1) != 1:  # If the image has more than one channel (e.g., RGB)
                     grayscale = torch.mean(image_rgb, dim=1, keepdim=True)  # Convert to grayscale by averaging channels
                 else:
-                    grayscale = image_rgb
+                    grayscale = image_rgb  # Image is already grayscale
 
+                # Apply the Laplacian kernel using conv2d
                 expected_sharpness = torch.nn.functional.conv2d(grayscale, kernel, stride=1, padding=1)
-                expected_sharpness = torch.mean(torch.abs(expected_sharpness))
+                expected_sharpness = torch.mean(torch.abs(expected_sharpness))  # Calculate mean absolute sharpness value
+
                 self.assertTrue(np.isclose(sharpness.item(), expected_sharpness.item()))
 
     def test_calculate_channel_mean(self):
