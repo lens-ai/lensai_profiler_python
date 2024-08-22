@@ -72,26 +72,40 @@ class TestLensaiMetrics(unittest.TestCase):
                 expected_snr = torch.where(sigma == 0, torch.tensor(float('inf')), 20 * torch.log10(mean / (sigma + 1e-7)))
                 self.assertTrue(np.isclose(snr.item(), expected_snr.item()))
 
+
     def test_calculate_sharpness_laplacian(self):
         for framework in self.frameworks:
             metrics = Metrics(framework=framework)
             image_rgb = self.images_rgb[framework]
 
             sharpness = metrics.calculate_sharpness_laplacian(image_rgb)
+
             if framework == 'tf':
                 import tensorflow as tf
                 kernel = tf.constant([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=tf.float32)
-                kernel = tf.reshape(kernel, [3, 3, 1, 1])
-                grayscale = tf.image.rgb_to_grayscale(image_rgb)
-                grayscale = tf.expand_dims(grayscale, axis=0)
+                kernel = tf.reshape(kernel, [3, 3, 1, 1])  # Kernel shape for TensorFlow [height, width, in_channels, out_channels]
+
+                if image_rgb.shape[-1] != 1:  # Check if the image is not grayscale
+                    grayscale = tf.image.rgb_to_grayscale(image_rgb)
+                else:
+                    grayscale = image_rgb
+
+                grayscale = tf.expand_dims(grayscale, axis=0)  # Add batch dimension
                 expected_sharpness = tf.nn.conv2d(grayscale, kernel, strides=[1, 1, 1, 1], padding='SAME')
                 expected_sharpness = tf.reduce_mean(tf.abs(expected_sharpness))
                 self.assertTrue(np.isclose(sharpness.numpy(), expected_sharpness.numpy()))
+
             elif framework == 'pt':
                 import torch
                 kernel = torch.tensor([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=torch.float32).unsqueeze(0).unsqueeze(0)
-                grayscale = torch.mean(image_rgb, dim=0, keepdim=True)
-                expected_sharpness = torch.nn.functional.conv2d(grayscale.unsqueeze(0), kernel)
+                # Kernel shape for PyTorch [out_channels, in_channels, height, width]
+            
+                if image_rgb.size(1) != 1:  # Check if the image is not grayscale
+                    grayscale = torch.mean(image_rgb, dim=1, keepdim=True)  # Convert to grayscale by averaging channels
+                else:
+                    grayscale = image_rgb
+
+                expected_sharpness = torch.nn.functional.conv2d(grayscale, kernel, stride=1, padding=1)
                 expected_sharpness = torch.mean(torch.abs(expected_sharpness))
                 self.assertTrue(np.isclose(sharpness.item(), expected_sharpness.item()))
 
