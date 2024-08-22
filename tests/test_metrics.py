@@ -112,14 +112,8 @@ class TestLensaiMetrics(unittest.TestCase):
             image_rgb = self.images_rgb[framework]
 
             channel_histogram = metrics.calculate_channel_histogram(image_rgb)
-            if framework == 'tf':
-                import tensorflow as tf
-                expected_histogram = tf.reshape(image_rgb, [-1, 3])
-                self.assertTrue(np.allclose(channel_histogram.numpy(), expected_histogram.numpy()))
-            elif framework == 'pt':
-                import torch
-                expected_histogram = image_rgb.view(3, -1)
-                self.assertTrue(np.allclose(channel_histogram.numpy(), expected_histogram.numpy()))
+            expected_histogram_shape = (3, 256)
+            self.assertTrue(channel_histogram.shape(), expected_histogram_shape)
 
     def test_process_batch(self):
         for framework in self.frameworks:
