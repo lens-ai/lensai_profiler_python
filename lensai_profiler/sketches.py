@@ -58,15 +58,14 @@ class Sketches:
         # Squeeze the array to ensure it is 1D or scalar
         values = np.squeeze(values)
 
-        # Check if values is a scalar (0D array)
-        if np.isscalar(values):
-            sketch.update(values)
-            return
-
         try:
-            # Update the sketch with each value if values is not a scalar
-            for value in values:
-                sketch.update(value)
+            # If values is a scalar, update the sketch directly
+            if (values.ndim == 0):
+                sketch.update(values.item())
+            else:
+                # Otherwise, iterate through the array and update the sketch
+                for value in values:
+                    sketch.update(value)
         except Exception as e:
             print(f"Error updating sketch with values: {values}, Error: {e}")
 
@@ -88,6 +87,7 @@ class Sketches:
                 if isinstance(sketch, list):
                     num_channels = len(sketch)
                     for i in range(num_channels):
+                        print(metric_name, num_channels)
                         futures.append(executor.submit(self.update_kll_sketch, sketch[i], values[:, i]))
                 else:
                     futures.append(executor.submit(self.update_kll_sketch, sketch, values))
@@ -173,3 +173,4 @@ class Sketches:
                 lower_percentile_value, upper_percentile_value = calculate_percentiles(x, p, lower_percentile, upper_percentile)
                 thresholds[metric_name] = (lower_percentile_value, upper_percentile_value)
         return thresholds
+

@@ -124,29 +124,18 @@ class Metrics:
         kernel = torch.tensor([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=torch.float32)
         kernel = kernel.view(1, 1, 3, 3)  # Reshape to (out_channels, in_channels, height, width)
     
-        # Handle different image formats
-        if image.shape[0] > 1:  # If the image has more than one channel
-            # Convert to grayscale by averaging the channels
-            image = torch.mean(image, dim=0, keepdim=True)
-            image = image.unsqueeze(0)  # Ensure batch dimension is present
+        # Convert the image to grayscale if it has more than one channel
+        if image.size(1) != 1:  # Check if the image has more than one channel
+            grayscale = torch.mean(image, dim=0, keepdim=True)  # Convert to grayscale
         else:
-            # Ensure the image is 4D (batch_size, channels, height, width)
-            if len(image.shape) == 2:  # [H, W]
-                image = image.unsqueeze(0).unsqueeze(0)  # Convert to [1, 1, H, W]
-            elif len(image.shape) == 3:  # [1, H, W]
-                image = image.unsqueeze(0)  # Convert to [1, 1, H, W]
+            grayscale = image  # Image is already grayscale
         
-        # Check the spatial dimensions of the image
-        if image.shape[2] < 3 or image.shape[3] < 3:
-            # Resize image to at least 3x3
-            image = torch.nn.functional.interpolate(image, size=(3, 3), mode='bilinear', align_corners=False)
+        grayscale = grayscale.unsqueeze(0)  # Add a batch dimension if necessary, shape becomes [1, 1, H, W]
 
-        # Apply the convolution
-        sharpness = torch.nn.functional.conv2d(image, kernel, stride=1, padding=1)
-
-        # Return the mean of the absolute sharpness
-        return torch.mean(torch.abs(sharpness))
-
+        #Apply the Laplacian kernel using conv2d
+        sharpness = torch.nn.functional.conv2d(grayscale, kernel, stride=1, padding=1)
+        return torch.mean(torch.abs(sharpness))  # Calculate mean absolute sharpness value
+                
     def _calculate_channel_mean_pt(self, image):
         return torch.mean(image, dim=[1, 2])
 
@@ -229,3 +218,4 @@ def get_histogram_sketch(sketch, num_splits=30):
     x = splits + [sketch.get_max_value()]  # Append max value for x-axis
 
     return x, pmf
+

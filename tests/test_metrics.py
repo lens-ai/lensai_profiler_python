@@ -124,7 +124,7 @@ class TestLensaiMetrics(unittest.TestCase):
                 # Apply the Laplacian kernel using conv2d
                 expected_sharpness = torch.nn.functional.conv2d(grayscale, kernel, stride=1, padding=1)
                 expected_sharpness = torch.mean(torch.abs(expected_sharpness))  # Calculate mean absolute sharpness value
-
+                print(sharpness.item(), expected_sharpness.item())
                 self.assertTrue(np.isclose(sharpness.item(), expected_sharpness.item()))
     
     def test_calculate_channel_mean(self):
@@ -202,4 +202,5 @@ class TestCalculatePercentiles(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
 
