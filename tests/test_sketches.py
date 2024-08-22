@@ -25,7 +25,7 @@ class TestSketches(unittest.TestCase):
         """Test that the Sketches class initializes correctly."""
         self.sketches.register_metric('test_metric', num_channels=self.num_channels)
         self.assertIn('test_metric', self.sketches.sketch_registry)
-        self.assertEqual(self.sketches.sketch_registry['test_metric'], self.num_channels)
+        self.assertEqual(len(self.sketches.sketch_registry['test_metric']), self.num_channels)
 
     def test_update_kll_sketch_tensorflow(self):
         """Test updating KLL sketch with TensorFlow tensor data."""

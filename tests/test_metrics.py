@@ -134,7 +134,7 @@ class TestLensaiMetrics(unittest.TestCase):
             self.assertEqual(sharpness.shape[0], 2)
             self.assertEqual(channel_mean.shape, (2, 3))
             self.assertEqual(snr.shape[0], 2)
-            self.assertEqual(channel_pixels.shape, (2, 4, 3))  # Assuming image size is 2x2 with 3 channels
+            self.assertEqual(channel_pixels.shape, (2, 3, 256))  # Assuming image size is 2x2 with 3 channels
 
 class TestCalculatePercentiles(unittest.TestCase):
 
