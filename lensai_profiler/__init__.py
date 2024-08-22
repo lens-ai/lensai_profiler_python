@@ -1,13 +1,20 @@
 # lensai/__init__.py
+import sys
+
+# lensai_profiler/__init__.py
 
 from .metrics import (
-    calculate_brightness,
-    calculate_snr,
-    calculate_sharpness_laplacian,
-    calculate_channel_mean,
-    process_batch,
-    get_histogram_sketch,
-    calculate_percentiles
+    Metrics,
+    calculate_percentiles,
+    get_histogram_sketch
 )
 
 from .sketches import Sketches
+
+__all__ = [
+    'Metrics',
+    'calculate_percentiles',
+    'get_histogram_sketch',
+    'Sketches'
+]
+
