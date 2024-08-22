@@ -118,6 +118,30 @@ class Metrics:
     def _calculate_brightness_pt(self, image):
         grayscale = torch.mean(image, dim=0, keepdim=True)
         return torch.mean(grayscale)
+    
+
+    def _calculate_sharpness_laplacian_pt(image):
+        # Define the Laplacian kernel
+        kernel = torch.tensor([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=torch.float32)
+        kernel = kernel.view(1, 1, 3, 3)  # Reshape to (out_channels, in_channels, height, width)
+
+        # Check if the image has an extra dimension and remove it
+        if len(image.shape) == 5:
+            image = image.squeeze(-1)  # Remove the extra dimension
+
+        # Ensure image is 4D
+        if len(image.shape) == 3:
+            image = image.unsqueeze(0)  # Add batch dimension if missing
+
+        if len(image.shape) == 2:  # [H, W]
+            image = image.unsqueeze(0)  # Convert to [1, H, W]
+    
+        # Apply the convolution
+        sharpness = F.conv2d(image, kernel, stride=1, padding=1)
+
+        # Return the mean of the absolute sharpness
+        return torch.mean(torch.abs(sharpness))
+
 
     def _calculate_sharpness_laplacian_pt(self, image):
         # Define the Laplacian kernel
