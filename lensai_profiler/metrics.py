@@ -139,7 +139,7 @@ class Metrics:
         # Check the spatial dimensions of the image
         if image.shape[2] < 3 or image.shape[3] < 3:
             # Resize image to at least 3x3
-            image = F.interpolate(image, size=(3, 3), mode='bilinear', align_corners=False)
+            image = torch.nn.functional.interpolate(image, size=(3, 3), mode='bilinear', align_corners=False)
 
         # Apply the convolution
         sharpness = torch.nn.functional.conv2d(image, kernel, stride=1, padding=1)
