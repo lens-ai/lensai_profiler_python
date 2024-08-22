@@ -55,13 +55,16 @@ class Sketches:
         elif isinstance(values, torch.Tensor):
             values = values.cpu().numpy()
 
-        # Squeeze the array to ensure it is 1D
+        # Squeeze the array to ensure it is 1D or scalar
         values = np.squeeze(values)
-        if len(values.shape) == 0:
+
+        # Check if values is a scalar (0D array)
+        if np.isscalar(values):
+            sketch.update(values)
             return
 
         try:
-            # Update the sketch with each value
+            # Update the sketch with each value if values is not a scalar
             for value in values:
                 sketch.update(value)
         except Exception as e:
