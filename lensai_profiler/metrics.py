@@ -23,7 +23,6 @@ class Metrics:
             global torch
             try:
                 import torch
-                import torch.nn.functional as F
             except ImportError:
                 raise ImportError("PyTorch is not installed. Please install it to use PyTorch metrics.")
         else:
@@ -132,7 +131,7 @@ class Metrics:
             image = image.unsqueeze(0).unsqueeze(0)  # Add batch and channel dimensions
 
         # Apply the convolution
-        sharpness = F.conv2d(grayscale_image, kernel, stride=1, padding=1)
+        sharpness = torch.nn.functional.conv2d(grayscale_image, kernel, stride=1, padding=1)
 
         # Return the mean of the absolute sharpness
         return torch.mean(torch.abs(sharpness))

@@ -7,7 +7,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         'numpy==1.24.3',
-        'datasketches==5.0.1',
+        'datasketches',
         # Other core dependencies
     ],tests_require=[
         'pytest',
