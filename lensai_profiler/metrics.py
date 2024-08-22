@@ -119,29 +119,28 @@ class Metrics:
         grayscale = torch.mean(image, dim=0, keepdim=True)
         return torch.mean(grayscale)
     
-
-    def _calculate_sharpness_laplacian_pt(self, image):
+    def _calculate_sharpness_laplacian_pt(image):
         # Define the Laplacian kernel
         kernel = torch.tensor([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=torch.float32)
         kernel = kernel.view(1, 1, 3, 3)  # Reshape to (out_channels, in_channels, height, width)
-
-        # Check if the image has an extra dimension and remove it
-        if len(image.shape) == 5:
-            image = image.squeeze(-1)  # Remove the extra dimension
-
-        # Ensure image is 4D
-        if len(image.shape) == 3:
-            image = image.unsqueeze(0)  # Add batch dimension if missing
-
-        if len(image.shape) == 2:  # [H, W]
-            image = image.unsqueeze(0)  # Convert to [1, H, W]
     
+        # Handle different image formats
+        if image.shape[0] > 1:  # If the image has more than one channel
+            # Convert to grayscale by averaging the channels
+            image = torch.mean(image, dim=0, keepdim=True)
+            image = image.unsqueeze(0)  # Ensure batch dimension is present
+        else:
+            # Ensure the image is 4D (batch_size, channels, height, width)
+            if len(image.shape) == 2:  # [H, W]
+                image = image.unsqueeze(0).unsqueeze(0)  # Convert to [1, 1, H, W]
+            elif len(image.shape) == 3:  # [1, H, W]
+                image = image.unsqueeze(0)  # Convert to [1, 1, H, W]
+
         # Apply the convolution
-        sharpness = torch.nn.functional.conv2d(image, kernel, stride=1, padding=1)
+        sharpness = F.conv2d(image, kernel, stride=1, padding=1)
 
         # Return the mean of the absolute sharpness
         return torch.mean(torch.abs(sharpness))
-
 
     def _calculate_channel_mean_pt(self, image):
         return torch.mean(image, dim=[1, 2])
