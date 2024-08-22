@@ -108,6 +108,9 @@ class TestLensaiMetrics(unittest.TestCase):
                 else:
                     grayscale = image_rgb  # Image is already grayscale
 
+                # Ensure the grayscale image has the correct shape for convolution
+                grayscale = grayscale.unsqueeze(0)  # Add a batch dimension if necessary, shape becomes [1, 1, H, W]
+
                 # Apply the Laplacian kernel using conv2d
                 expected_sharpness = torch.nn.functional.conv2d(grayscale, kernel, stride=1, padding=1)
                 expected_sharpness = torch.mean(torch.abs(expected_sharpness))  # Calculate mean absolute sharpness value
