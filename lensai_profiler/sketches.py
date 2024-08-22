@@ -58,7 +58,7 @@ class Sketches:
         # Squeeze the array to ensure it is 1D
         values = np.squeeze(values)
         if len(values.shape) == 0:
-            sketch.update(values)
+            return
 
         try:
             # Update the sketch with each value

@@ -137,7 +137,7 @@ class Metrics:
                 image = image.unsqueeze(0)  # Convert to [1, 1, H, W]
 
         # Apply the convolution
-        sharpness = F.conv2d(image, kernel, stride=1, padding=1)
+        sharpness = torch.nn.functional.conv2d(image, kernel, stride=1, padding=1)
 
         # Return the mean of the absolute sharpness
         return torch.mean(torch.abs(sharpness))
