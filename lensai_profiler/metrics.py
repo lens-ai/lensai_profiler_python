@@ -143,23 +143,6 @@ class Metrics:
         return torch.mean(torch.abs(sharpness))
 
 
-    def _calculate_sharpness_laplacian_pt(self, image):
-        # Define the Laplacian kernel
-        kernel = torch.tensor([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=torch.float32)
-        kernel = kernel.view(1, 1, 3, 3)  # Reshape to (out_channels, in_channels, height, width)
-
-        # Ensure the grayscale image has the appropriate dimensions (batch, channels, height, width)
-        if len(image.shape) == 3:
-            image = image.unsqueeze(0).unsqueeze(0)  # Add batch and channel dimensions
-        elif len(image.shape) == 2:
-            image = image.unsqueeze(0).unsqueeze(0)  # Add batch and channel dimensions
-
-        # Apply the convolution
-        sharpness = torch.nn.functional.conv2d(image, kernel, stride=1, padding=1)
-
-        # Return the mean of the absolute sharpness
-        return torch.mean(torch.abs(sharpness))
-    
     def _calculate_channel_mean_pt(self, image):
         return torch.mean(image, dim=[1, 2])
 
