@@ -23,6 +23,7 @@ class Metrics:
             global torch
             try:
                 import torch
+                import torch.nn.functional as F
             except ImportError:
                 raise ImportError("PyTorch is not installed. Please install it to use PyTorch metrics.")
         else:
