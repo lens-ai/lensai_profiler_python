@@ -108,7 +108,7 @@ class TestLensaiMetrics(unittest.TestCase):
     
                 # Convert the image to grayscale if it has more than one channel
                 if image_rgb.size(1) != 1:  # Check if the image has more than one channel
-                    grayscale = torch.mean(image_rgb, dim=1, keepdim=True)  # Convert to grayscale
+                    grayscale = torch.mean(image_rgb, dim=0, keepdim=True)  # Convert to grayscale
                 else:
                     grayscale = image_rgb  # Image is already grayscale
 
@@ -125,7 +125,8 @@ class TestLensaiMetrics(unittest.TestCase):
                 expected_sharpness = torch.nn.functional.conv2d(grayscale, kernel, stride=1, padding=1)
                 expected_sharpness = torch.mean(torch.abs(expected_sharpness))  # Calculate mean absolute sharpness value
 
-                self.assertTrue(np.isclose(sharpness.item(), expected_sharpness.item()))
+               self.assertTrue(np.isclose(sharpness.item(), expected_sharpness.item()))
+    
     def test_calculate_channel_mean(self):
         for framework in self.frameworks:
             metrics = Metrics(framework=framework)
