@@ -15,21 +15,25 @@ class TestLensaiMetrics(unittest.TestCase):
                 import tensorflow as tf
                 self.images_rgb[framework] = tf.constant([
                     [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
-                    [[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]]
+                    [[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]],
+                    [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]
                 ], dtype=tf.float32)
                 self.images_rgba[framework] = tf.constant([
                     [[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]],
-                    [[9.0, 10.0, 11.0, 12.0], [13.0, 14.0, 15.0, 16.0]]
+                    [[9.0, 10.0, 11.0, 12.0], [13.0, 14.0, 15.0, 16.0]],
+                    [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]
                 ], dtype=tf.float32)
             elif framework == 'pt':
                 import torch
                 self.images_rgb[framework] = torch.tensor([
                     [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
-                    [[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]]
+                    [[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]],
+                    [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]
                 ], dtype=torch.float32)
                 self.images_rgba[framework] = torch.tensor([
                     [[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]],
-                    [[9.0, 10.0, 11.0, 12.0], [13.0, 14.0, 15.0, 16.0]]
+                    [[9.0, 10.0, 11.0, 12.0], [13.0, 14.0, 15.0, 16.0]],
+                    [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]
                 ], dtype=torch.float32)
 
     def test_calculate_brightness(self):
