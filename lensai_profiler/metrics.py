@@ -120,7 +120,7 @@ class Metrics:
         return torch.mean(grayscale)
     
 
-    def _calculate_sharpness_laplacian_pt(image):
+    def _calculate_sharpness_laplacian_pt(self, image):
         # Define the Laplacian kernel
         kernel = torch.tensor([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=torch.float32)
         kernel = kernel.view(1, 1, 3, 3)  # Reshape to (out_channels, in_channels, height, width)
