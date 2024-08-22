@@ -94,7 +94,7 @@ class Metrics:
         for i in range(num_channels):
             hist = tf.histogram_fixed_width(channel_pixels[:, i], [0.0, 1.0], nbins=bins)
             histograms.append(hist)
-        return tf.stack(tf.cast(histogram, tf.float32), axis=0)
+        return tf.stack(tf.cast(histograms, tf.float32), axis=0)
 
     def _calculate_channel_histogram_pt(self, image, bins=256):
         num_channels = image.shape[0]
@@ -120,15 +120,22 @@ class Metrics:
         return torch.mean(grayscale)
 
     def _calculate_sharpness_laplacian_pt(self, image):
-        kernel = torch.tensor([[1, 1, 1], [1, -8, 1], [1, 1, 1]], dtype=torch.float32).unsqueeze(0).unsqueeze(0)
-        grayscale = torch.mean(image, dim=0)  # Assuming the input is RGB and we convert it to grayscale
-        if grayscale.size(-2) < 3 or grayscale.size(-1) < 3:
-            # Resize or pad the image if it is too small
-            grayscale = torch.nn.functional.pad(grayscale, (1, 1, 1, 1), mode='replicate')
-        sharpness = torch.nn.functional.conv2d(grayscale.unsqueeze(0).unsqueeze(0), kernel)
+        # Define the Laplacian kernel
+        kernel = torch.tensor([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=torch.float32)
+        kernel = kernel.view(1, 1, 3, 3)  # Reshape to (out_channels, in_channels, height, width)
+
+        # Ensure the grayscale image has the appropriate dimensions (batch, channels, height, width)
+        if len(grayscale_image.shape) == 3:
+            grayscale_image = grayscale_image.unsqueeze(0).unsqueeze(0)  # Add batch and channel dimensions
+        elif len(grayscale_image.shape) == 2:
+            grayscale_image = grayscale_image.unsqueeze(0).unsqueeze(0)  # Add batch and channel dimensions
+
+        # Apply the convolution
+        sharpness = F.conv2d(grayscale_image, kernel, stride=1, padding=1)
+
+        # Return the mean of the absolute sharpness
         return torch.mean(torch.abs(sharpness))
-
-
+    
     def _calculate_channel_mean_pt(self, image):
         return torch.mean(image, dim=[1, 2])
 
