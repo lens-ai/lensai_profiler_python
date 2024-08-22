@@ -125,10 +125,10 @@ class Metrics:
         kernel = kernel.view(1, 1, 3, 3)  # Reshape to (out_channels, in_channels, height, width)
 
         # Ensure the grayscale image has the appropriate dimensions (batch, channels, height, width)
-        if len(grayscale_image.shape) == 3:
-            grayscale_image = grayscale_image.unsqueeze(0).unsqueeze(0)  # Add batch and channel dimensions
-        elif len(grayscale_image.shape) == 2:
-            grayscale_image = grayscale_image.unsqueeze(0).unsqueeze(0)  # Add batch and channel dimensions
+        if len(image.shape) == 3:
+            image = image.unsqueeze(0).unsqueeze(0)  # Add batch and channel dimensions
+        elif len(image.shape) == 2:
+            image = image.unsqueeze(0).unsqueeze(0)  # Add batch and channel dimensions
 
         # Apply the convolution
         sharpness = F.conv2d(grayscale_image, kernel, stride=1, padding=1)
