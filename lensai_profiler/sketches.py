@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import numpy as np
 from .metrics import get_histogram_sketch, calculate_percentiles
+
 try:
     import tensorflow as tf
     TENSORFLOW_AVAILABLE = True
@@ -60,14 +61,28 @@ class Sketches:
 
         try:
             # If values is a scalar, update the sketch directly
-            if (values.ndim == 0):
+            if values.ndim == 0:
                 sketch.update(values.item())
             else:
-                # Otherwise, iterate through the array and update the sketch
-                for value in values:
+                # Flatten the values to 1D array before updating the sketch
+                flattened_values = values.flatten()
+                for value in flattened_values:
                     sketch.update(value)
         except Exception as e:
-            print(f"Error updating sketch with values: {values}, Error: {e}")
+            print(f"Error updating sketch with values shape: {values.shape}, Error: {e}")
+
+    def _calculate_channel_mean(self, values):
+        """
+        Calculate the mean for each channel in the image.
+
+        Args:
+            values (np.ndarray): The input image array with shape [height, width, channels].
+
+        Returns:
+            np.ndarray: An array containing the mean of each channel.
+        """
+        # Calculate the mean across the height and width dimensions, leaving only the channels
+        return np.mean(values, axis=(0, 1))
 
     def update_sketches(self, **kwargs):
         """
@@ -86,8 +101,13 @@ class Sketches:
 
                 if isinstance(sketch, list):
                     num_channels = len(sketch)
-                    for i in range(num_channels):
-                        futures.append(executor.submit(self.update_kll_sketch, sketch[i], values[:, i]))
+                    if values.ndim > 1:
+                        for i in range(num_channels):
+                            futures.append(executor.submit(self.update_kll_sketch, sketch[i], values[:, i]))
+                    else:
+                        print(f"Expected multi-channel data for '{metric_name}', but received scalar. Updating all channels with same value.")
+                        for i in range(num_channels):
+                            futures.append(executor.submit(self.update_kll_sketch, sketch[i], values))
                 else:
                     futures.append(executor.submit(self.update_kll_sketch, sketch, values))
 
@@ -172,4 +192,3 @@ class Sketches:
                 lower_percentile_value, upper_percentile_value = calculate_percentiles(x, p, lower_percentile, upper_percentile)
                 thresholds[metric_name] = (lower_percentile_value, upper_percentile_value)
         return thresholds
-

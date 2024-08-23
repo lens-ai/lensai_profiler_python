@@ -62,14 +62,17 @@ Please refer for more detailed documentation:
 ## Usage
 For detailed usage, please refer to the provided iPython notebook. : This gives the metrics distributions and also their quantiles. These are used as the base line when computing data drift.
 
+### Tensor Flow Usage
 
 ```python
-import tensorflow as tf
-from lensai_profiler_tf.metrics import process_batch
-from lensai_profiler_tf.sketches import Sketches
-import os
 
-# Download and prepare the dataset
+import tensorflow as tf
+from lensai_profiler import Metrics, calculate_percentiles
+from lensai_profiler.sketches import Sketches
+import os
+import matplotlib.pyplot as plt
+import numpy as np
+
 _URL = 'https://storage.googleapis.com/mledu-datasets/cats_and_dogs_filtered.zip'
 path_to_zip = tf.keras.utils.get_file('cats_and_dogs.zip', origin=_URL, extract=True)
 PATH = os.path.join(os.path.dirname(path_to_zip), 'cats_and_dogs_filtered')
@@ -85,26 +88,102 @@ train_dataset = tf.keras.utils.image_dataset_from_directory(train_dir,
                                                             batch_size=BATCH_SIZE,
                                                             image_size=IMG_SIZE)
 
-# Initialize Lens AI sketches
-num_channels = 3  # Assuming RGB images
-sketches = Sketches(num_channels)
+metrics = Metrics(framework="tf")
 
-# Apply map function in parallel to compute metrics
-train_dataset = train_dataset.map(
-    lambda images, labels: process_batch(images),
-    num_parallel_calls=tf.data.AUTOTUNE
-)
+# Initialize Sketches class
+num_channels = 3  # Assuming RGB images
+sketches = Sketches()
+
+sketches.register_metric('brightness')
+sketches.register_metric('sharpness')
+sketches.register_metric('snr')
+
+sketches.register_metric('channel_mean', num_channels=3)
+sketches.register_metric('channel_histogram', num_channels=3)
+
+
+# Process a batch of images in parallel
+train_dataset = train_dataset.map(lambda images, labels: metrics.process_batch(images), num_parallel_calls=tf.data.AUTOTUNE)
 
 # Iterate through the dataset and update the KLL sketches in parallel
-for brightness, sharpness, channel_mean, snr, channel_pixels in train_dataset:
-    sketches.tf_update_sketches(brightness, sharpness, channel_mean, snr, channel_pixels)
+for batch in train_dataset:
+    brightness, sharpness, channel_mean, snr, channel_pixels = batch
+    sketches.update_sketches(
+        brightness=brightness,
+        sharpness=sharpness,
+        channel_mean=channel_mean,
+        snr=snr,
+        channel_histogram=channel_pixels
+    )
 
 # Save the KLL sketches to a specified directory
 save_path = '/content/sample_data/'
 sketches.save_sketches(save_path)
-thresholds = sketches.get_thresholds()
 
 ```
+
+### Pytorch Usage
+
+```python
+import multiprocessing as mp
+import torch
+from torch.utils.data import DataLoader
+import torchvision.transforms as transforms
+import torchvision.datasets as datasets
+from lensai_profiler import Metrics
+from lensai_profiler.sketches import Sketches
+import os
+
+# Set multiprocessing start method
+mp.set_start_method('spawn', force=True)
+
+# Path setup (equivalent to TensorFlow code)
+URL = 'https://storage.googleapis.com/mledu-datasets/cats_and_dogs_filtered.zip'
+path_to_zip = tf.keras.utils.get_file('cats_and_dogs.zip', origin=URL, extract=True)
+PATH = os.path.join(os.path.dirname(path_to_zip), 'cats_and_dogs_filtered')
+
+train_dir = os.path.join(PATH, 'train')
+validation_dir = os.path.join(PATH, 'validation')
+
+# Image transformation and dataset setup
+transform = transforms.Compose([
+    transforms.Resize((160, 160)),
+    transforms.ToTensor(),
+])
+
+train_dataset = datasets.ImageFolder(train_dir, transform=transform)
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=0)  # Set num_workers to 0 to avoid threading issues
+
+# Initialize Metrics and Sketches classes
+metrics = Metrics(framework="pt")
+sketches = Sketches()
+
+num_channels = 3  # Assuming RGB images
+sketches.register_metric('brightness')
+sketches.register_metric('sharpness')
+sketches.register_metric('snr')
+sketches.register_metric('channel_mean', num_channels=3)
+sketches.register_metric('channel_histogram', num_channels=3)
+
+# Process the dataset and update the KLL sketches
+for images, labels in train_loader:
+    images = images.to('cuda' if torch.cuda.is_available() else 'cpu')
+    brightness, sharpness, channel_mean, snr, channel_pixels = metrics.process_batch(images)
+    
+    sketches.update_sketches(
+        brightness=brightness.cpu(),
+        sharpness=sharpness.cpu(),
+        channel_mean=channel_mean.cpu(),
+        snr=snr.cpu(),
+        channel_histogram=channel_pixels.cpu()
+    )
+
+# Save the KLL sketches to a specified directory
+save_path = '/content/'
+sketches.save_sketches(save_path)
+
+```
+
 ## Complete Model monitoring pipeline 
 
 ### Model Training
@@ -146,10 +225,10 @@ Lens AI tensorflow is currently extended with the following features.
 
 | Feature | Version |
 | ------ | ------ |
-| Adding Pytorch Support | 1.0.1 |
-| Adding inference Support | 1.0.1 |
-| Adding support for time series data | 1.0.2 |
-| Adding Inference time profiling | 1.0.2 |
+| Adding Pytorch Support | 1.1.0 |
+| Adding inference Support | 1.2.0 |
+| Adding support for time series data | 1.3.0 |
+| Adding Inference time profiling | 1.4.0 |
 
 ## Development
 
@@ -157,7 +236,7 @@ Want to contribute? Great!
 
 ## License
 
-MIT
+AGPL
 
 
 
