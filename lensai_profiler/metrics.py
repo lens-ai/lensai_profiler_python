@@ -29,36 +29,90 @@ class Metrics:
             raise ValueError("Unsupported framework. Use 'tf' for TensorFlow or 'pt' for PyTorch.")
 
     def calculate_brightness(self, image):
+        """
+        Calculate the brightness of an image.
+
+        Args:
+            image: A TensorFlow tensor representing an RGB image.
+
+        Returns:
+            A TensorFlow tensor containing the mean brightness of the image.
+        """
         if self.framework == 'tf':
             return self._calculate_brightness_tf(image)
         elif self.framework == 'pt':
             return self._calculate_brightness_pt(image)
 
     def calculate_sharpness_laplacian(self, image):
+        """
+        Calculate the sharpness of an image using the Laplacian operator.
+
+        Args:
+            image: A TensorFlow tensor representing an RGB image.
+
+        Returns:
+            A TensorFlow tensor containing the sharpness of the image.
+        """
         if self.framework == 'tf':
             return self._calculate_sharpness_laplacian_tf(image)
         elif self.framework == 'pt':
             return self._calculate_sharpness_laplacian_pt(image)
 
     def calculate_channel_mean(self, image):
+        """
+        Calculate the mean of each channel of an image.
+
+        Args:
+            image: A TensorFlow tensor representing an image.
+
+        Returns:
+            A TensorFlow tensor containing the mean of each channel.
+        """
         if self.framework == 'tf':
             return self._calculate_channel_mean_tf(image)
         elif self.framework == 'pt':
             return self._calculate_channel_mean_pt(image)
 
     def calculate_snr(self, image):
+        """
+        Calculate the Signal-to-Noise Ratio (SNR) of an image.
+
+        Args:
+            image_tensor: A TensorFlow tensor representing an RGB or RGBA image.
+
+        Returns:
+            A TensorFlow tensor containing the SNR of the image.
+        """
         if self.framework == 'tf':
             return self._calculate_snr_tf(image)
         elif self.framework == 'pt':
             return self._calculate_snr_pt(image)
 
     def calculate_channel_histogram(self, image):
+        """
+        Calculate the histogram of the channels of an image.
+
+        Args:
+            image: A TensorFlow tensor representing an image.
+
+        Returns:
+            A TensorFlow tensor containing the histogram of the image channels.
+        """
         if self.framework == 'tf':
             return self._calculate_channel_histogram_tf(image)
         elif self.framework == 'pt':
             return self._calculate_channel_histogram_pt(image)
 
     def process_batch(self, images):
+        """
+        Process a batch of images and calculate various metrics.
+
+        Args:
+            images: A TensorFlow tensor representing a batch of images.
+
+        Returns:
+            A tuple containing the brightness, sharpness, channel mean, SNR, and channel histogram of the batch.
+        """
         if self.framework == 'tf':
             return self._process_batch_tf(images)
         elif self.framework == 'pt':
