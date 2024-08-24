@@ -141,21 +141,21 @@ class Metrics:
         snr = tf.where(sigma == 0, np.inf, 20 * tf.math.log(mean / sigma + 1e-7) / tf.math.log(10.0))
         return snr
 
-    def _calculate_channel_histogram_tf(self, image, bins=256):
+    def _calculate_channel_histogram_tf(self, image, pixel_range=[0, 255], bins=256):
         num_channels = image.shape[-1]
         channel_pixels = tf.reshape(image, [-1, num_channels])
         histograms = []
         for i in range(num_channels):
-            hist = tf.histogram_fixed_width(channel_pixels[:, i], [0.0, 1.0], nbins=bins)
+            hist = tf.histogram_fixed_width(channel_pixels[:, i], value_range=pixel_range, nbins=bins)
             histograms.append(hist)
         return tf.stack(tf.cast(histograms, tf.float32), axis=0)
 
-    def _calculate_channel_histogram_pt(self, image, bins=256):
+    def _calculate_channel_histogram_pt(self, image, pixel_range=[0, 255], bins=256):
         num_channels = image.shape[0]
         channel_pixels = image.view(num_channels, -1)
         histograms = []
         for i in range(num_channels):
-            hist = torch.histc(channel_pixels[i], bins=bins, min=0.0, max=1.0)
+            hist = torch.histc(channel_pixels[i], bins=bins, min=pixel_range[0], max=pixel_range[1])
             histograms.append(hist)
         return torch.stack(histograms, dim=0)
 
