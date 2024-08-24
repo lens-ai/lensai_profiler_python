@@ -148,7 +148,7 @@ class Metrics:
         for i in range(num_channels):
             hist = tf.histogram_fixed_width(channel_pixels[:, i], value_range=pixel_range, nbins=bins)
             histograms.append(hist)
-        return tf.stack(histograms, axis=0)
+        return tf.stack(tf.cast(histograms, tf.float32), axis=0)
 
     def _calculate_channel_histogram_pt(self, image, pixel_range=[0, 255], bins=256):
         num_channels = image.shape[0]
