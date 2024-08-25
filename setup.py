@@ -3,7 +3,7 @@ import sys
 
 setup(
     name='lensai_profiler',
-    version='1.1.1',
+    version='1.1.2',
     packages=find_packages(),
     install_requires=[
         'numpy==1.24.3',
