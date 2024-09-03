@@ -1,8 +1,10 @@
 import datasketches
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
+import time
 import numpy as np
 from .metrics import get_histogram_sketch, calculate_percentiles
+from .utils import tar_and_gzip_folder, post_file_to_endpoint
 
 try:
     import tensorflow as tf
@@ -192,3 +194,28 @@ class Sketches:
                 lower_percentile_value, upper_percentile_value = calculate_percentiles(x, p, lower_percentile, upper_percentile)
                 thresholds[metric_name] = (lower_percentile_value, upper_percentile_value)
         return thresholds
+
+    def publish_sketches(self, folder_path, endpoint_url, sensor_id="reference"):
+        """
+        Compress a folder and post it to an endpoint, then clean up intermediate files.
+
+        Args:
+            folder_path (str): The path to the folder to compress and post.
+            endpoint_url (str): The URL of the endpoint to post to.
+            sensor_id (str): The value for the 'sensorid' header.
+        """
+        # Generate a Unix timestamp
+        timestamp = int(time.time())
+
+        # Compress the folder into a tar.gz file
+        tar_gz_path = tar_and_gzip_folder(folder_path, "stats")
+
+        # Post the compressed file to the endpoint
+        post_file_to_endpoint(tar_gz_path, endpoint_url, sensor_id, timestamp, "stats")
+
+        # Delete the tar.gz file after posting
+        if os.path.exists(tar_gz_path):
+            os.remove(tar_gz_path)
+            print(f"Deleted temporary file: {tar_gz_path}")
+        else:
+            print(f"Temporary file not found: {tar_gz_path}")

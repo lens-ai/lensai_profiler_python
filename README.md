@@ -119,6 +119,7 @@ for batch in train_dataset:
 # Save the KLL sketches to a specified directory
 save_path = '/content/sample_data/'
 sketches.save_sketches(save_path)
+sketches.publish_sketches(save_path, lensai_server_endpoint)
 
 ```
 
@@ -181,7 +182,7 @@ for images, labels in train_loader:
 # Save the KLL sketches to a specified directory
 save_path = '/content/'
 sketches.save_sketches(save_path)
-
+sketches.publish_sketches(save_path, lensai_server_endpoint)
 ```
 
 ## Complete Model monitoring pipeline 
@@ -225,8 +226,7 @@ Lens AI tensorflow is currently extended with the following features.
 
 | Feature | Version |
 | ------ | ------ |
-| Adding Pytorch Support | 1.1.0 |
-| Adding inference Support | 1.2.0 |
+| Adding inference Support | 1.3.0 |
 | Adding support for time series data | 1.3.0 |
 | Adding Inference time profiling | 1.4.0 |
 
