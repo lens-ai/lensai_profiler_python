@@ -8,6 +8,7 @@ setup(
     install_requires=[
         'numpy==1.24.3',
         'datasketches',
+        'requests==2.32.3',
         # Other core dependencies
     ],tests_require=[
         'pytest',

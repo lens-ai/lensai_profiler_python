@@ -1,6 +1,7 @@
 import datasketches
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
+import time
 import numpy as np
 from .metrics import get_histogram_sketch, calculate_percentiles
 from .utils import tar_and_gzip_folder, post_file_to_endpoint
@@ -194,7 +195,7 @@ class Sketches:
                 thresholds[metric_name] = (lower_percentile_value, upper_percentile_value)
         return thresholds
 
-    def publish_sketches(folder_path, endpoint_url, sensor_id="reference"):
+    def publish_sketches(self, folder_path, endpoint_url, sensor_id="reference"):
         """
         Compress a folder and post it to an endpoint, then clean up intermediate files.
 

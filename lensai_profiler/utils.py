@@ -8,14 +8,21 @@ import time
 def tar_and_gzip_folder(folder_path, output_filename):
     """
     Tar and gzip a folder.
-
     Args:
         folder_path (str): The path to the folder to compress.
         output_filename (str): The name of the output tar.gz file.
-
     Returns:
         str: The path to the tar.gz file.
     """
+
+    # Ensure folder_path is a string (path to the folder)
+    if not isinstance(folder_path, str):
+        raise TypeError(f"Expected folder_path to be a string, got {type(folder_path)} instead.")
+ 
+    # Ensure the folder path exists
+    if not os.path.isdir(folder_path):
+        raise ValueError(f"The folder path '{folder_path}' does not exist or is not a directory.")
+
     # Create paths for the tar and gzip files in the /tmp/ directory
     tar_path = f'/tmp/{output_filename}.tar'
     gzip_path = f'/tmp/{output_filename}.tar.gz'
@@ -31,8 +38,8 @@ def tar_and_gzip_folder(folder_path, output_filename):
     
     # Remove the intermediate tar file
     os.remove(tar_path)
-    
     return gzip_path
+
 
 def post_file_to_endpoint(file_path, endpoint_url, sensor_id, timestamp, metrictype):
     """
@@ -57,28 +64,3 @@ def post_file_to_endpoint(file_path, endpoint_url, sensor_id, timestamp, metrict
         print(f"File {file_path} successfully posted to {endpoint_url}.")
     else:
         print(f"Failed to post file. Status code: {response.status_code}, Response: {response.text}")
-
-def publish_sketches(folder_path, endpoint_url, sensor_id):
-    """
-    Compress a folder and post it to an endpoint, then clean up intermediate files.
-
-    Args:
-        folder_path (str): The path to the folder to compress and post.
-        endpoint_url (str): The URL of the endpoint to post to.
-        sensor_id (str): The value for the 'sensorid' header.
-    """
-    # Generate a Unix timestamp
-    timestamp = int(time.time())
-    
-    # Compress the folder into a tar.gz file
-    tar_gz_path = tar_and_gzip_folder(folder_path, "stats")
-    
-    # Post the compressed file to the endpoint
-    post_file_to_endpoint(tar_gz_path, endpoint_url, sensor_id, timestamp)
-    
-    # Delete the tar.gz file after posting
-    if os.path.exists(tar_gz_path):
-        os.remove(tar_gz_path)
-        print(f"Deleted temporary file: {tar_gz_path}")
-    else:
-        print(f"Temporary file not found: {tar_gz_path}")
