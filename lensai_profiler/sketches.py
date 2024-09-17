@@ -170,7 +170,6 @@ class Sketches:
                 with open(file_path, 'wb') as f:
                     f.write(sketch.serialize())
 
-    
     def load_sketches(self, base_path):
         """
         Load all KLL sketches from binary files.
@@ -178,44 +177,85 @@ class Sketches:
         Args:
             base_path (str): Path to the base directory from which sketches will be loaded.
         """
-        # Define subfolders based on metric name patterns
-        imgstats_folder = os.path.join(base_path, 'imgstats')
-        modelstats_folder = os.path.join(base_path, 'modelstats')
-        customstats_folder = os.path.join(base_path, 'customstats')
+        def load_from_folder(folder_path):
+            """
+            Load sketches from a specific folder into the sketch registry.
 
-        # Load sketches from imgstats
-        if os.path.exists(imgstats_folder):
-            for filename in os.listdir(imgstats_folder):
+            Args:
+                folder_path (str): Path to the folder containing the binary files.
+            """
+            if not os.path.exists(folder_path):
+                return
+        
+            for filename in os.listdir(folder_path):
                 if filename.endswith('.bin'):
-                    metric_name = filename.rsplit('_', 1)[0]
-                    index = filename.rsplit('_', 1)[1].replace('.bin', '')
-                    if metric_name not in self.sketch_registry:
-                        self.sketch_registry[metric_name] = []
-                    with open(os.path.join(imgstats_folder, filename), 'rb') as f:
-                        if not index.isdigit():  # for non-indexed files
-                            sketch = datasketches.kll_floats_sketch.deserialize(f.read())
-                            self.sketch_registry[metric_name] = sketch
-                        else:  # for indexed files
-                            sketch = datasketches.kll_floats_sketch.deserialize(f.read())
-                            self.sketch_registry[metric_name].append(sketch)
+                    metric_name, index_part = _parse_filename(filename)
+                    if index_part is not None:
+                        _load_indexed_sketch(folder_path, filename, metric_name, int(index_part))
+                    else:
+                        _load_non_indexed_sketch(folder_path, filename, metric_name)
+    
+        def _parse_filename(filename):
+            """
+            Parse the filename to extract the metric name and index.
 
-        # Load sketches from modelstats
-        if os.path.exists(modelstats_folder):
-            for filename in os.listdir(modelstats_folder):
-                if filename.endswith('.bin'):
-                    metric_name = filename.replace('.bin', '')
-                    with open(os.path.join(modelstats_folder, filename), 'rb') as f:
-                        sketch = datasketches.kll_floats_sketch.deserialize(f.read())
-                        self.sketch_registry[metric_name] = sketch
+            Args:
+                filename (str): The filename of the binary file.
 
-        # Load sketches from customstats
-        if os.path.exists(customstats_folder):
-            for filename in os.listdir(customstats_folder):
-                if filename.endswith('.bin'):
-                    metric_name = filename.replace('.bin', '')
-                    with open(os.path.join(customstats_folder, filename), 'rb') as f:
-                        sketch = datasketches.kll_floats_sketch.deserialize(f.read())
-                        self.sketch_registry[metric_name] = sketch
+            Returns:
+                tuple: (metric_name, index) where index is None for non-indexed files.
+            """
+            base_name = filename.replace('.bin', '')
+            if '_' in base_name:
+                metric_name, index_part = base_name.rsplit('_', 1)
+                return metric_name, index_part
+            else:
+                return base_name, None
+
+        def _load_indexed_sketch(folder_path, filename, metric_name, index):
+            """
+            Load an indexed sketch from a binary file.
+
+            Args:
+                folder_path (str): Path to the folder containing the binary file.
+                filename (str): The filename of the binary file.
+                metric_name (str): The name of the metric.
+                index (int): The index of the sketch.
+            """
+            if metric_name not in self.sketch_registry:
+                self.sketch_registry[metric_name] = []
+        
+            while len(self.sketch_registry[metric_name]) <= index:
+                self.sketch_registry[metric_name].append(None)
+        
+            try:
+                with open(os.path.join(folder_path, filename), 'rb') as file:
+                    self.sketch_registry[metric_name][index] = datasketches.kll_floats_sketch.deserialize(file.read())
+            except IOError as e:
+                print(f"Error loading file {filename}: {e}")
+
+        def _load_non_indexed_sketch(folder_path, filename, metric_name):
+            """
+            Load a non-indexed sketch from a binary file.
+
+            Args:
+                folder_path (str): Path to the folder containing the binary file.
+                filename (str): The filename of the binary file.
+                metric_name (str): The name of the metric.
+            """
+            if metric_name not in self.sketch_registry:
+                try:
+                    with open(os.path.join(folder_path, filename), 'rb') as file:
+                        self.sketch_registry[metric_name] = datasketches.kll_floats_sketch.deserialize(file.read())
+                except IOError as e:
+                    print(f"Error loading file {filename}: {e}")
+
+        # Process each folder
+        load_from_folder(os.path.join(base_path, 'imgstats'))
+        load_from_folder(os.path.join(base_path, 'modelstats'))
+        load_from_folder(os.path.join(base_path, 'customstats'))
+
+
 
 
     def compute_thresholds(self, lower_percentile=0.1, upper_percentile=0.99):
@@ -267,3 +307,4 @@ class Sketches:
             print(f"Deleted temporary file: {tar_gz_path}")
         else:
             print(f"Temporary file not found: {tar_gz_path}")
+
