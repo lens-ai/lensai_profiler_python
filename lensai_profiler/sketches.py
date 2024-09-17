@@ -136,39 +136,87 @@ class Sketches:
         """
         # Directly call update_sketches with PyTorch tensors
         self.update_sketches(**kwargs)
-
-    def save_sketches(self, save_path):
+    
+    def save_sketches(self, base_path):
         """
         Save all registered KLL sketches to binary files for later use.
 
         Args:
-            save_path (str): Path to the directory where sketches will be saved.
+            base_path (str): Path to the base directory where sketches will be saved.
         """
-        os.makedirs(save_path, exist_ok=True)
+        # Loop through the registered sketches
         for metric_name, sketch in self.sketch_registry.items():
+            # Determine the subdirectory based on the metric name
+            if metric_name in ['brightness', 'noise', 'sharpness'] or metric_name.startswith(('mean_', 'pixel_')):
+                subfolder = 'imgstats'
+            elif metric_name == 'embeddings':
+                subfolder = 'modelstats'
+            else:
+                # For custom sketches, use the 'customstats' subfolder
+                subfolder = 'customstats'
+
+            # Construct the full path to save the sketches
+            save_path = os.path.join(base_path, subfolder)
+            os.makedirs(save_path, exist_ok=True)
+
+            # Save the sketches
             if isinstance(sketch, list):
                 for i, s in enumerate(sketch):
-                    with open(os.path.join(save_path, f'{metric_name}_{i}.bin'), 'wb') as f:
+                    file_path = os.path.join(save_path, f'{metric_name}_{i}.bin')
+                    with open(file_path, 'wb') as f:
                         f.write(s.serialize())
             else:
-                with open(os.path.join(save_path, f'{metric_name}.bin'), 'wb') as f:
+                file_path = os.path.join(save_path, f'{metric_name}.bin')
+                with open(file_path, 'wb') as f:
                     f.write(sketch.serialize())
 
-    def load_sketches(self, load_path):
+    
+    def load_sketches(self, base_path):
         """
         Load all KLL sketches from binary files.
 
         Args:
-            load_path (str): Path to the directory from which sketches will be loaded.
+            base_path (str): Path to the base directory from which sketches will be loaded.
         """
-        for metric_name, sketch in self.sketch_registry.items():
-            if isinstance(sketch, list):
-                for i in range(len(sketch)):
-                    with open(os.path.join(load_path, f'{metric_name}_{i}.bin'), 'rb') as f:
-                        self.sketch_registry[metric_name][i] = datasketches.kll_floats_sketch.deserialize(f.read())
-            else:
-                with open(os.path.join(load_path, f'{metric_name}.bin'), 'rb') as f:
-                    self.sketch_registry[metric_name] = datasketches.kll_floats_sketch.deserialize(f.read())
+        # Define subfolders based on metric name patterns
+        imgstats_folder = os.path.join(base_path, 'imgstats')
+        modelstats_folder = os.path.join(base_path, 'modelstats')
+        customstats_folder = os.path.join(base_path, 'customstats')
+
+        # Load sketches from imgstats
+        if os.path.exists(imgstats_folder):
+            for filename in os.listdir(imgstats_folder):
+                if filename.endswith('.bin'):
+                    metric_name = filename.rsplit('_', 1)[0]
+                    index = filename.rsplit('_', 1)[1].replace('.bin', '')
+                    if metric_name not in self.sketch_registry:
+                        self.sketch_registry[metric_name] = []
+                    with open(os.path.join(imgstats_folder, filename), 'rb') as f:
+                        if not index.isdigit():  # for non-indexed files
+                            sketch = datasketches.kll_floats_sketch.deserialize(f.read())
+                            self.sketch_registry[metric_name] = sketch
+                        else:  # for indexed files
+                            sketch = datasketches.kll_floats_sketch.deserialize(f.read())
+                            self.sketch_registry[metric_name].append(sketch)
+
+        # Load sketches from modelstats
+        if os.path.exists(modelstats_folder):
+            for filename in os.listdir(modelstats_folder):
+                if filename.endswith('.bin'):
+                    metric_name = filename.replace('.bin', '')
+                    with open(os.path.join(modelstats_folder, filename), 'rb') as f:
+                        sketch = datasketches.kll_floats_sketch.deserialize(f.read())
+                        self.sketch_registry[metric_name] = sketch
+
+        # Load sketches from customstats
+        if os.path.exists(customstats_folder):
+            for filename in os.listdir(customstats_folder):
+                if filename.endswith('.bin'):
+                    metric_name = filename.replace('.bin', '')
+                    with open(os.path.join(customstats_folder, filename), 'rb') as f:
+                        sketch = datasketches.kll_floats_sketch.deserialize(f.read())
+                        self.sketch_registry[metric_name] = sketch
+
 
     def compute_thresholds(self, lower_percentile=0.1, upper_percentile=0.99):
         """

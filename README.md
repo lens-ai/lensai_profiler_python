@@ -226,9 +226,9 @@ Lens AI tensorflow is currently extended with the following features.
 
 | Feature | Version |
 | ------ | ------ |
-| Adding inference Support | 1.3.0 |
-| Adding support for time series data | 1.3.0 |
+| Adding tracking metrics | 1.3.0 |
 | Adding Inference time profiling | 1.4.0 |
+| Adding Audio data metrics | 1.5.0 |
 
 ## Development
 
