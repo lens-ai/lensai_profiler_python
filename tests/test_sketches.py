@@ -15,11 +15,14 @@ class TestSketches(unittest.TestCase):
         os.makedirs(self.save_path, exist_ok=True)
 
     def tearDown(self):
-        """Cleanup any created files and directories."""
+        # Clean up any resources after each test
         if os.path.exists(self.save_path):
-            for f in os.listdir(self.save_path):
-                os.remove(os.path.join(self.save_path, f))
-            os.rmdir(self.save_path)
+            for root, dirs, files in os.walk(self.save_path, topdown=False):
+                for name in files:
+                    os.remove(os.path.join(root, name))
+                for name in dirs:
+                    os.rmdir(os.path.join(root, name))
+            os.rmdir(self.save_path)    
 
     def test_initialization(self):
         """Test that the Sketches class initializes correctly."""
@@ -71,17 +74,20 @@ class TestSketches(unittest.TestCase):
         self.sketches.register_metric('brightness')
         brightness = tf.constant([1.0, 2.0, 3.0], dtype=tf.float32)
         self.sketches.update_kll_sketch(self.sketches.sketch_registry['brightness'], brightness)
-        
+
         # Save sketches to disk
         self.sketches.save_sketches(self.save_path)
 
         # Create a new Sketches instance and load from disk
         new_sketches = Sketches()
-        new_sketches.register_metric('brightness')  # Register before loading
         new_sketches.load_sketches(self.save_path)
 
         # Check if the loaded sketch is the same as the saved one
-        self.assertEqual(new_sketches.sketch_registry['brightness'].n, self.sketches.sketch_registry['brightness'].n)
+        self.assertTrue('brightness' in new_sketches.sketch_registry)
+        original_sketch = self.sketches.sketch_registry['brightness']
+        loaded_sketch = new_sketches.sketch_registry['brightness']
+        self.assertEqual(original_sketch.n, loaded_sketch.n)
+
 
     def test_compute_thresholds(self):
         """Test the computation of thresholds."""
@@ -104,3 +110,4 @@ class TestSketches(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+

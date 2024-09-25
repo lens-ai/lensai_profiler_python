@@ -62,6 +62,8 @@ Please refer for more detailed documentation:
 ## Usage
 For detailed usage, please refer to the provided iPython notebook. : This gives the metrics distributions and also their quantiles. These are used as the base line when computing data drift.
 
+NOTE: Please make sure the order in which you register the metrics need to be same as the order in which you they are returned from the batch processing
+
 ### Tensor Flow Usage
 
 ```python
@@ -96,10 +98,10 @@ sketches = Sketches()
 
 sketches.register_metric('brightness')
 sketches.register_metric('sharpness')
-sketches.register_metric('snr')
+sketches.register_metric('noise')
 
-sketches.register_metric('channel_mean', num_channels=3)
-sketches.register_metric('channel_histogram', num_channels=3)
+sketches.register_metric('mean', num_channels=3)
+sketches.register_metric('pixel', num_channels=3)
 
 
 # Process a batch of images in parallel
@@ -107,13 +109,13 @@ train_dataset = train_dataset.map(lambda images, labels: metrics.process_batch(i
 
 # Iterate through the dataset and update the KLL sketches in parallel
 for batch in train_dataset:
-    brightness, sharpness, channel_mean, snr, channel_pixels = batch
+    brightness, sharpness, mean, noise, pixel = batch
     sketches.update_sketches(
         brightness=brightness,
         sharpness=sharpness,
-        channel_mean=channel_mean,
-        snr=snr,
-        channel_histogram=channel_pixels
+        mean=channel_mean,
+        noise=noise,
+        pixel=pixel
     )
 
 # Save the KLL sketches to a specified directory
@@ -162,21 +164,21 @@ sketches = Sketches()
 num_channels = 3  # Assuming RGB images
 sketches.register_metric('brightness')
 sketches.register_metric('sharpness')
-sketches.register_metric('snr')
-sketches.register_metric('channel_mean', num_channels=3)
-sketches.register_metric('channel_histogram', num_channels=3)
+sketches.register_metric('noise')
+sketches.register_metric('mean', num_channels=3)
+sketches.register_metric('pixel', num_channels=3)
 
 # Process the dataset and update the KLL sketches
 for images, labels in train_loader:
     images = images.to('cuda' if torch.cuda.is_available() else 'cpu')
-    brightness, sharpness, channel_mean, snr, channel_pixels = metrics.process_batch(images)
+    brightness, sharpness, mean, noise, pixel = metrics.process_batch(images)
     
     sketches.update_sketches(
         brightness=brightness.cpu(),
         sharpness=sharpness.cpu(),
-        channel_mean=channel_mean.cpu(),
-        snr=snr.cpu(),
-        channel_histogram=channel_pixels.cpu()
+        mean=mean.cpu(),
+        noise=noise.cpu(),
+        pixel=pixel.cpu()
     )
 
 # Save the KLL sketches to a specified directory
@@ -184,6 +186,53 @@ save_path = '/content/'
 sketches.save_sketches(save_path)
 sketches.publish_sketches(save_path, lensai_server_endpoint)
 ```
+### Embeddings Logging - TF
+
+```python
+
+class FinalEpochMetricsAndEmbeddingCallback(tf.keras.callbacks.Callback):
+    def __init__(self, model, train_dataset, metrics, sketches, layer_name, save_path):
+        super().__init__()
+        self.train_dataset = train_dataset
+        self.metrics = metrics
+        self.sketches = sketches
+        self.layer_name = layer_name
+        self.save_path = save_path
+        os.makedirs(save_path, exist_ok=True)
+
+    def on_train_end(self, logs=None):
+        print("Final epoch ended. Computing metrics and embeddings...")
+
+        # Create the embedding model based on the trained model
+        embedding_model = tf.keras.Model(inputs=self.model.input, outputs=self.model.get_layer(self.layer_name).output)
+
+        all_embeddings = []
+        for batch in self.train_dataset:
+            images, labels = batch
+
+            # Compute metrics for the batch
+            brightness, sharpness, mean, noise, pixel = self.metrics.process_batch(images)
+
+            # Get embeddings from the specified layer
+            embeddings = embedding_model.predict(images)
+            all_embeddings.append(embeddings)
+
+            # Update sketches with the calculated metrics and embeddings
+            self.sketches.update_sketches(
+                brightness=brightness,
+                sharpness=sharpness,
+                mean=mean,
+                noise=noise,
+                pixel=pixel,
+                embeddings=embeddings
+            )
+
+        # Save the sketches to a specified directory
+        self.sketches.save_sketches(self.save_path)
+
+```
+
+###
 
 ## Complete Model monitoring pipeline 
 
@@ -226,9 +275,9 @@ Lens AI tensorflow is currently extended with the following features.
 
 | Feature | Version |
 | ------ | ------ |
-| Adding inference Support | 1.3.0 |
-| Adding support for time series data | 1.3.0 |
+| Adding tracking metrics | 1.3.0 |
 | Adding Inference time profiling | 1.4.0 |
+| Adding Audio data metrics | 1.5.0 |
 
 ## Development
 
