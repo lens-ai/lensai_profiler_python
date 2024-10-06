@@ -31,7 +31,7 @@ class Sketches:
         """
         self.sketch_registry = {}
 
-    def register_metric(self, metric_name, num_channels=1):
+    def register_metric(self, metric_name, n=1, l=[]):
         """
         Register a custom metric by name. Each metric will have a corresponding KLL sketch.
 
@@ -39,10 +39,13 @@ class Sketches:
             metric_name (str): The name of the custom metric.
             num_channels (int): The number of channels for the metric (e.g., 3 for RGB images). Default is 1.
         """
-        if num_channels == 1:
+        if l :
+            self.cls = l
+            self.sketch_registry[metric_name] = [datasketches.kll_floats_sketch() for _ in l]
+        elif n == 1:
             self.sketch_registry[metric_name] = datasketches.kll_floats_sketch()
-        else:
-            self.sketch_registry[metric_name] = [datasketches.kll_floats_sketch() for _ in range(num_channels)]
+        elif n > 1:
+            self.sketch_registry[metric_name] = [datasketches.kll_floats_sketch() for _ in range(n)]
 
     def update_kll_sketch(self, sketch, values):
         """
@@ -86,6 +89,9 @@ class Sketches:
         # Calculate the mean across the height and width dimensions, leaving only the channels
         return np.mean(values, axis=(0, 1))
 
+    def get_cls_index(self, cls):
+        return self.cls.index(cls)
+
     def update_sketches(self, **kwargs):
         """
         Update all registered KLL sketches in parallel using the provided metric values.
@@ -97,19 +103,25 @@ class Sketches:
         with ThreadPoolExecutor() as executor:
             for metric_name, values in kwargs.items():
                 sketch = self.sketch_registry.get(metric_name)
+                
                 if sketch is None:
                     print(f"Warning: No sketch registered for metric '{metric_name}'")
                     continue
 
                 if isinstance(sketch, list):
-                    num_channels = len(sketch)
-                    if values.ndim > 1:
-                        for i in range(num_channels):
-                            futures.append(executor.submit(self.update_kll_sketch, sketch[i], values[:, i]))
+                    if isinstance(values, tuple):
+                        cls, cls_values = values
+                        cls_index = get_cls_index(cls)
+                        futures.append(executor.submit(self.update_kll_sketch, sketch[cls_index], cls_values))
                     else:
-                        print(f"Expected multi-channel data for '{metric_name}', but received scalar. Updating all channels with same value.")
-                        for i in range(num_channels):
-                            futures.append(executor.submit(self.update_kll_sketch, sketch[i], values))
+                        num_channels = len(sketch)
+                        if values.ndim > 1:
+                            for i in range(num_channels):
+                                futures.append(executor.submit(self.update_kll_sketch, sketch[i], values[:, i]))
+                        else:
+                            print(f"Expected multi-channel data for '{metric_name}', but received scalar. Updating all channels with same value.")
+                            for i in range(num_channels):
+                                futures.append(executor.submit(self.update_kll_sketch, sketch[i], values))
                 else:
                     futures.append(executor.submit(self.update_kll_sketch, sketch, values))
 
