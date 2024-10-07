@@ -26,7 +26,7 @@ class TestSketches(unittest.TestCase):
 
     def test_initialization(self):
         """Test that the Sketches class initializes correctly."""
-        self.sketches.register_metric('test_metric', num_channels=self.num_channels)
+        self.sketches.register_metric('test_metric', n=self.num_channels)
         self.assertIn('test_metric', self.sketches.sketch_registry)
         self.assertEqual(len(self.sketches.sketch_registry['test_metric']), self.num_channels)
 
@@ -50,9 +50,9 @@ class TestSketches(unittest.TestCase):
         """Test updating all sketches with TensorFlow tensor data."""
         self.sketches.register_metric('brightness')
         self.sketches.register_metric('sharpness')
-        self.sketches.register_metric('channel_mean', num_channels=self.num_channels)
+        self.sketches.register_metric('channel_mean', n=self.num_channels)
         self.sketches.register_metric('snr')
-        self.sketches.register_metric('channel_pixels', num_channels=self.num_channels)
+        self.sketches.register_metric('channel_pixels', n=self.num_channels)
 
         brightness = tf.constant([1.0, 2.0, 3.0], dtype=tf.float32)
         sharpness = tf.constant([4.0, 5.0, 6.0], dtype=tf.float32)
@@ -67,6 +67,38 @@ class TestSketches(unittest.TestCase):
         self.assertGreater(self.sketches.sketch_registry['snr'].n, 0)
         self.assertGreater(self.sketches.sketch_registry['channel_mean'][0].n, 0)
         self.assertGreater(self.sketches.sketch_registry['channel_pixels'][0].n, 0)
+
+        """Test updating sketches with a list of TensorFlow embeddings."""
+        self.sketches.register_metric('embedding')
+    
+        # Mock list of embeddings (TensorFlow tensors)
+        embedding_list = [
+            tf.constant([[0.1, 0.2, 0.3]], dtype=tf.float32),
+            tf.constant([[0.4, 0.5, 0.6]], dtype=tf.float32),
+            tf.constant([[0.7, 0.8, 0.9]], dtype=tf.float32)
+        ]
+    
+        self.sketches.update_sketches(embedding=embedding_list)
+    
+        # Ensure the sketch has been updated
+        self.assertGreater(self.sketches.sketch_registry['embedding'].n, 0)
+
+        """Test updating sketches with TensorFlow embeddings and class pairs."""
+        self.sketches.register_metric('embedding_class_pairs', n = 3, l=[0, 1, 2])
+    
+        # Mock list of (embedding, class) pairs
+        embedding_class_pairs = [
+            (tf.constant([[0.1, 0.2, 0.3]], dtype=tf.float32), 0),
+            (tf.constant([[0.4, 0.5, 0.6]], dtype=tf.float32), 1),
+            (tf.constant([[0.7, 0.8, 0.9]], dtype=tf.float32), 2)
+        ]
+
+        self.sketches.update_sketches(embedding_class_pairs=embedding_class_pairs)
+         
+        # Ensure the sketch has been updated for embedding and class
+        for i in range(3):
+            self.assertGreater(self.sketches.sketch_registry['embedding_class_pairs'][i].n, 0)
+
 
     def test_save_and_load_sketches(self):
         """Test saving and loading sketches."""
