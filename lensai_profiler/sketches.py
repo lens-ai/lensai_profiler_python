@@ -109,19 +109,20 @@ class Sketches:
                     continue
 
                 if isinstance(sketch, list):
-                    if isinstance(values, tuple):
-                        cls, cls_values = values
-                        cls_index = get_cls_index(cls)
-                        futures.append(executor.submit(self.update_kll_sketch, sketch[cls_index], cls_values))
+                    n = len(sketch)
+                    if isinstance(values, list):
+                        for value in values:
+                            if isinstance(value, tuple):
+                                cls_values, cls = value
+                                cls_index = self.get_cls_index(cls)
+                                futures.append(executor.submit(self.update_kll_sketch, sketch[cls_index], cls_values))
+                    elif values.ndim > 1:
+                        for i in range(n): 
+                            futures.append(executor.submit(self.update_kll_sketch, sketch[i], values[:, i]))
                     else:
-                        num_channels = len(sketch)
-                        if values.ndim > 1:
-                            for i in range(num_channels):
-                                futures.append(executor.submit(self.update_kll_sketch, sketch[i], values[:, i]))
-                        else:
-                            print(f"Expected multi-channel data for '{metric_name}', but received scalar. Updating all channels with same value.")
-                            for i in range(num_channels):
-                                futures.append(executor.submit(self.update_kll_sketch, sketch[i], values))
+                        print(f"Expected multi-channel data for '{metric_name}', but received scalar. Updating all channels with same value.")
+                        for i in range(n):
+                            futures.append(executor.submit(self.update_kll_sketch, sketch[i], values))
                 else:
                     futures.append(executor.submit(self.update_kll_sketch, sketch, values))
 
