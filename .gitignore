@@ -1,5 +1,6 @@
 build
 dist
+**/.DS_Store
 .DS_Store
 lensai_profiler_tf/__py_cache__
 tests/__pycache__
