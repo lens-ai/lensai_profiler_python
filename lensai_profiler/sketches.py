@@ -45,33 +45,35 @@ class Sketches:
             self.sketch_registry[metric_name] = [datasketches.kll_floats_sketch() for _ in range(num_channels)]
 
     def update_kll_sketch(self, sketch, values):
-        """
-        Update a KLL sketch with values from a tensor.
+       """
+       Update a KLL sketch with values from a tensor.
 
-        Args:
-            sketch (datasketches.kll_floats_sketch): The KLL sketch to be updated.
-            values (TensorFlow or PyTorch tensor): The tensor containing values to update the sketch with.
-        """
-        # Convert TensorFlow or PyTorch tensor to numpy array
-        if isinstance(values, tf.Tensor):
-            values = values.numpy()
-        elif isinstance(values, torch.Tensor):
-            values = values.cpu().numpy()
-
-        # Squeeze the array to ensure it is 1D or scalar
-        values = np.squeeze(values)
-
-        try:
-            # If values is a scalar, update the sketch directly
-            if values.ndim == 0:
-                sketch.update(values.item())
+       Args:
+          sketch (datasketches.kll_floats_sketch): The KLL sketch to be updated.
+          values (TensorFlow or PyTorch tensor): The tensor containing values to update the sketch with.
+       """
+       try:
+            # Convert TensorFlow or PyTorch tensor to numpy array
+            if TENSORFLOW_AVAILABLE and isinstance(values, tf.Tensor):
+                values = values.numpy()
+            elif TORCH_AVAILABLE and isinstance(values, torch.Tensor):
+                values = values.cpu().numpy()
             else:
-                # Flatten the values to 1D array before updating the sketch
-                flattened_values = values.flatten()
-                for value in flattened_values:
+                values = values.numpy()
+
+            # Ensure the values are 1D
+            values = np.squeeze(values)
+
+            # Update the sketch
+            if values.ndim == 0:  # Scalar value
+                sketch.update(values.item())
+            else:  # Array of values
+                for value in values.flatten():
                     sketch.update(value)
-        except Exception as e:
-            print(f"Error updating sketch with values shape: {values.shape}, Error: {e}")
+       except Exception as e:
+            print(f"Error updating sketch with values shape: {getattr(values, 'shape', None)}, Error: {e}")
+            raise  # Re-raise exception for debugging
+
 
     def _calculate_channel_mean(self, values):
         """
@@ -256,8 +258,6 @@ class Sketches:
         load_from_folder(os.path.join(base_path, 'customstats'))
 
 
-
-
     def compute_thresholds(self, lower_percentile=0.1, upper_percentile=0.99):
         """
         Compute the lower and upper percentile thresholds for all registered KLL sketches.
@@ -275,13 +275,19 @@ class Sketches:
                 thresholds[metric_name] = {}
                 for idx, s in enumerate(sketch):
                     x, p = get_histogram_sketch(s)
+                    if x is None or p is None:
+                        raise ValueError(f"Invalid sketch data for metric '{metric_name}' at index {idx}.")
                     lower_percentile_value, upper_percentile_value = calculate_percentiles(x, p, lower_percentile, upper_percentile)
                     thresholds[metric_name][idx] = (lower_percentile_value, upper_percentile_value)
             else:
                 x, p = get_histogram_sketch(sketch)
+                if x is None or p is None:
+                    raise ValueError(f"Invalid sketch data for metric '{metric_name}'.")
                 lower_percentile_value, upper_percentile_value = calculate_percentiles(x, p, lower_percentile, upper_percentile)
                 thresholds[metric_name] = (lower_percentile_value, upper_percentile_value)
         return thresholds
+
+
 
     def publish_sketches(self, folder_path, endpoint_url, sensor_id="reference"):
         """
@@ -307,4 +313,5 @@ class Sketches:
             print(f"Deleted temporary file: {tar_gz_path}")
         else:
             print(f"Temporary file not found: {tar_gz_path}")
+
 
