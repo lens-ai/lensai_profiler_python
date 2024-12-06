@@ -1,0 +1,29 @@
+tests package
+=============
+
+Submodules
+----------
+
+tests.test\_metrics module
+--------------------------
+
+.. automodule:: tests.test_metrics
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+tests.test\_sketches module
+---------------------------
+
+.. automodule:: tests.test_sketches
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: tests
+   :members:
+   :undoc-members:
+   :show-inheritance:

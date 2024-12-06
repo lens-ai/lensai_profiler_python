@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>lensai_profiler.metrics &#8212; Lens AI Profiler 1.0.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=4f649999" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css?v=039e1c02" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js?v=af2ce170"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=4825356b"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for lensai_profiler.metrics</h1><div class="highlight"><pre>
+<span></span><span class="c1"># lensai/metrics.py</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">datasketches</span>
+
+<div class="viewcode-block" id="Metrics"><a class="viewcode-back" href="../../lensai_profiler.html#lensai_profiler.metrics.Metrics">[docs]</a><span class="k">class</span> <span class="nc">Metrics</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">framework</span><span class="o">=</span><span class="s1">&#39;tf&#39;</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize the Metrics class.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            framework: Specify the framework (&#39;tf&#39; for TensorFlow, &#39;pt&#39; for PyTorch).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">framework</span> <span class="o">=</span> <span class="n">framework</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">framework</span> <span class="o">==</span> <span class="s1">&#39;tf&#39;</span><span class="p">:</span>
+            <span class="k">global</span> <span class="n">tf</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
+            <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="s2">&quot;TensorFlow is not installed. Please install it to use TensorFlow metrics.&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">framework</span> <span class="o">==</span> <span class="s1">&#39;pt&#39;</span><span class="p">:</span>
+            <span class="k">global</span> <span class="n">torch</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="kn">import</span> <span class="nn">torch</span>
+            <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="s2">&quot;PyTorch is not installed. Please install it to use PyTorch metrics.&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Unsupported framework. Use &#39;tf&#39; for TensorFlow or &#39;pt&#39; for PyTorch.&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Metrics.calculate_brightness"><a class="viewcode-back" href="../../lensai_profiler.html#lensai_profiler.metrics.Metrics.calculate_brightness">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_brightness</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate the brightness of an image.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            image: A TensorFlow tensor representing an RGB image.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A TensorFlow tensor containing the mean brightness of the image.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">framework</span> <span class="o">==</span> <span class="s1">&#39;tf&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_brightness_tf</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">framework</span> <span class="o">==</span> <span class="s1">&#39;pt&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_brightness_pt</span><span class="p">(</span><span class="n">image</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Metrics.calculate_sharpness_laplacian"><a class="viewcode-back" href="../../lensai_profiler.html#lensai_profiler.metrics.Metrics.calculate_sharpness_laplacian">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_sharpness_laplacian</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate the sharpness of an image using the Laplacian operator.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            image: A TensorFlow tensor representing an RGB image.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A TensorFlow tensor containing the sharpness of the image.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">framework</span> <span class="o">==</span> <span class="s1">&#39;tf&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_sharpness_laplacian_tf</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">framework</span> <span class="o">==</span> <span class="s1">&#39;pt&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_sharpness_laplacian_pt</span><span class="p">(</span><span class="n">image</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Metrics.calculate_channel_mean"><a class="viewcode-back" href="../../lensai_profiler.html#lensai_profiler.metrics.Metrics.calculate_channel_mean">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_channel_mean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate the mean of each channel of an image.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            image: A TensorFlow tensor representing an image.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A TensorFlow tensor containing the mean of each channel.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">framework</span> <span class="o">==</span> <span class="s1">&#39;tf&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_channel_mean_tf</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">framework</span> <span class="o">==</span> <span class="s1">&#39;pt&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_channel_mean_pt</span><span class="p">(</span><span class="n">image</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Metrics.calculate_snr"><a class="viewcode-back" href="../../lensai_profiler.html#lensai_profiler.metrics.Metrics.calculate_snr">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_snr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate the Signal-to-Noise Ratio (SNR) of an image.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            image_tensor: A TensorFlow tensor representing an RGB or RGBA image.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A TensorFlow tensor containing the SNR of the image.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">framework</span> <span class="o">==</span> <span class="s1">&#39;tf&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_snr_tf</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">framework</span> <span class="o">==</span> <span class="s1">&#39;pt&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_snr_pt</span><span class="p">(</span><span class="n">image</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Metrics.calculate_channel_histogram"><a class="viewcode-back" href="../../lensai_profiler.html#lensai_profiler.metrics.Metrics.calculate_channel_histogram">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_channel_histogram</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate the histogram of the channels of an image.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            image: A TensorFlow tensor representing an image.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A TensorFlow tensor containing the histogram of the image channels.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">framework</span> <span class="o">==</span> <span class="s1">&#39;tf&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_channel_histogram_tf</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">framework</span> <span class="o">==</span> <span class="s1">&#39;pt&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_channel_histogram_pt</span><span class="p">(</span><span class="n">image</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Metrics.process_batch"><a class="viewcode-back" href="../../lensai_profiler.html#lensai_profiler.metrics.Metrics.process_batch">[docs]</a>    <span class="k">def</span> <span class="nf">process_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">images</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Process a batch of images and calculate various metrics.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            images: A TensorFlow tensor representing a batch of images.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A tuple containing the brightness, sharpness, channel mean, SNR, and channel histogram of the batch.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">framework</span> <span class="o">==</span> <span class="s1">&#39;tf&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_batch_tf</span><span class="p">(</span><span class="n">images</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">framework</span> <span class="o">==</span> <span class="s1">&#39;pt&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_batch_pt</span><span class="p">(</span><span class="n">images</span><span class="p">)</span></div>
+
+    <span class="c1"># TensorFlow implementations</span>
+    <span class="k">def</span> <span class="nf">_calculate_brightness_tf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">):</span>
+        <span class="n">grayscale</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">rgb_to_grayscale</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">reduce_mean</span><span class="p">(</span><span class="n">grayscale</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_calculate_sharpness_laplacian_tf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">):</span>
+        <span class="n">kernel</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">constant</span><span class="p">([[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">kernel</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">kernel</span><span class="p">,</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="n">grayscale</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">rgb_to_grayscale</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+        <span class="n">grayscale</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="n">grayscale</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">sharpness</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">conv2d</span><span class="p">(</span><span class="n">grayscale</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">strides</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">padding</span><span class="o">=</span><span class="s1">&#39;SAME&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">reduce_mean</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">sharpness</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_calculate_channel_mean_tf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">reduce_mean</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">_calculate_snr_tf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image_tensor</span><span class="p">):</span>
+        <span class="n">grayscale</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">rgb_to_grayscale</span><span class="p">(</span><span class="n">image_tensor</span><span class="p">)</span>
+        <span class="n">mean</span><span class="p">,</span> <span class="n">variance</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">moments</span><span class="p">(</span><span class="n">grayscale</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="n">sigma</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">variance</span><span class="p">)</span>
+        <span class="n">snr</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">sigma</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="mi">20</span> <span class="o">*</span> <span class="n">tf</span><span class="o">.</span><span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">mean</span> <span class="o">/</span> <span class="n">sigma</span> <span class="o">+</span> <span class="mf">1e-7</span><span class="p">)</span> <span class="o">/</span> <span class="n">tf</span><span class="o">.</span><span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">10.0</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">snr</span>
+
+    <span class="k">def</span> <span class="nf">_calculate_channel_histogram_tf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">):</span>
+        <span class="n">num_channels</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">channel_pixels</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_channels</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">channel_pixels</span>
+
+    <span class="k">def</span> <span class="nf">_calculate_channel_histogram_pt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">):</span>
+        <span class="n">num_channels</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">channel_pixels</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">num_channels</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>  <span class="c1"># Flatten the image and switch dimensions to (num_pixels, num_channels)</span>
+        <span class="k">return</span> <span class="n">channel_pixels</span>
+
+    <span class="k">def</span> <span class="nf">_process_batch_tf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">images</span><span class="p">):</span>
+        <span class="n">brightness</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">map_fn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_calculate_brightness_tf</span><span class="p">,</span> <span class="n">images</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">sharpness</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">map_fn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_calculate_sharpness_laplacian_tf</span><span class="p">,</span> <span class="n">images</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">channel_mean</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">map_fn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_calculate_channel_mean_tf</span><span class="p">,</span> <span class="n">images</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">snr</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">map_fn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_calculate_snr_tf</span><span class="p">,</span> <span class="n">images</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">channel_pixels</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">map_fn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_calculate_channel_histogram_tf</span><span class="p">,</span> <span class="n">images</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">brightness</span><span class="p">,</span> <span class="n">sharpness</span><span class="p">,</span> <span class="n">channel_mean</span><span class="p">,</span> <span class="n">snr</span><span class="p">,</span> <span class="n">channel_pixels</span>
+
+
+    <span class="c1"># PyTorch implementations</span>
+    <span class="k">def</span> <span class="nf">_calculate_brightness_pt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">):</span>
+        <span class="n">grayscale</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">grayscale</span><span class="p">)</span>
+    
+    <span class="k">def</span> <span class="nf">_calculate_sharpness_laplacian_pt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">):</span>
+        <span class="c1"># Define the Laplacian kernel</span>
+        <span class="n">kernel</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">kernel</span> <span class="o">=</span> <span class="n">kernel</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>  <span class="c1"># Reshape to (out_channels, in_channels, height, width)</span>
+    
+        <span class="c1"># Convert the image to grayscale if it has more than one channel</span>
+        <span class="k">if</span> <span class="n">image</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>  <span class="c1"># Check if the image has more than one channel</span>
+            <span class="n">grayscale</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>  <span class="c1"># Convert to grayscale</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">grayscale</span> <span class="o">=</span> <span class="n">image</span>  <span class="c1"># Image is already grayscale</span>
+        
+        <span class="n">grayscale</span> <span class="o">=</span> <span class="n">grayscale</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># Add a batch dimension if necessary, shape becomes [1, 1, H, W]</span>
+
+        <span class="c1">#Apply the Laplacian kernel using conv2d</span>
+        <span class="n">sharpness</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">conv2d</span><span class="p">(</span><span class="n">grayscale</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">sharpness</span><span class="p">))</span>  <span class="c1"># Calculate mean absolute sharpness value</span>
+                
+    <span class="k">def</span> <span class="nf">_calculate_channel_mean_pt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">_calculate_snr_pt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image_tensor</span><span class="p">):</span>
+        <span class="n">grayscale</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">image_tensor</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">mean</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">grayscale</span><span class="p">)</span>
+        <span class="n">sigma</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">grayscale</span><span class="p">)</span>
+        <span class="n">snr</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">sigma</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">)),</span> <span class="mi">20</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">mean</span> <span class="o">/</span> <span class="p">(</span><span class="n">sigma</span> <span class="o">+</span> <span class="mf">1e-7</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="n">snr</span>
+
+
+    <span class="k">def</span> <span class="nf">_process_batch_pt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">images</span><span class="p">):</span>
+        <span class="n">brightness</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_calculate_brightness_pt</span><span class="p">(</span><span class="n">img</span><span class="p">)</span> <span class="k">for</span> <span class="n">img</span> <span class="ow">in</span> <span class="n">images</span><span class="p">])</span>
+        <span class="n">sharpness</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_calculate_sharpness_laplacian_pt</span><span class="p">(</span><span class="n">img</span><span class="p">)</span> <span class="k">for</span> <span class="n">img</span> <span class="ow">in</span> <span class="n">images</span><span class="p">])</span>
+        <span class="n">channel_mean</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_calculate_channel_mean_pt</span><span class="p">(</span><span class="n">img</span><span class="p">)</span> <span class="k">for</span> <span class="n">img</span> <span class="ow">in</span> <span class="n">images</span><span class="p">])</span>
+        <span class="n">snr</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_calculate_snr_pt</span><span class="p">(</span><span class="n">img</span><span class="p">)</span> <span class="k">for</span> <span class="n">img</span> <span class="ow">in</span> <span class="n">images</span><span class="p">])</span>
+        <span class="n">channel_pixels</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_calculate_channel_histogram_pt</span><span class="p">(</span><span class="n">img</span><span class="p">)</span> <span class="k">for</span> <span class="n">img</span> <span class="ow">in</span> <span class="n">images</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">brightness</span><span class="p">,</span> <span class="n">sharpness</span><span class="p">,</span> <span class="n">channel_mean</span><span class="p">,</span> <span class="n">snr</span><span class="p">,</span> <span class="n">channel_pixels</span></div>
+
+<span class="c1"># Utility functions for both TensorFlow and PyTorch</span>
+<div class="viewcode-block" id="calculate_percentiles"><a class="viewcode-back" href="../../lensai_profiler.html#lensai_profiler.metrics.calculate_percentiles">[docs]</a><span class="k">def</span> <span class="nf">calculate_percentiles</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">probabilities</span><span class="p">,</span> <span class="n">lower_percentile</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">upper_percentile</span><span class="o">=</span><span class="mf">0.99</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculates percentiles from a PMF (Probability Mass Function) represented as two separate lists.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        x: List containing the x-values (possible values) in the distribution.</span>
+<span class="sd">        probabilities: List containing the probabilities corresponding to the x-values.</span>
+<span class="sd">        lower_percentile: Float between 0 and 1 (inclusive) specifying the lower percentile (default 0.01).</span>
+<span class="sd">        upper_percentile: Float between 0 and 1 (inclusive) specifying the upper percentile (default 0.99).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A tuple containing the lower and upper percentiles (x-values, float).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Ensure lists have the same length</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">probabilities</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;x and probabilities lists must have the same length&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Ensure PMF is a valid probability distribution (sums to 1)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">probabilities</span><span class="p">),</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;PMF must sum to 1&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Combine x-values and probabilities into a single list of tuples</span>
+    <span class="n">pmf</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">probabilities</span><span class="p">))</span>
+    <span class="c1"># Sort PMF based on x-values (ascending order)</span>
+    <span class="n">pmf</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">item</span><span class="p">:</span> <span class="n">item</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="c1"># Calculate cumulative sum of probabilities</span>
+    <span class="n">cdf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">([</span><span class="n">p</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">pmf</span><span class="p">])</span>
+    <span class="c1"># Calculate percentile indices with edge case handling</span>
+    <span class="n">lower_percentile_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">cdf</span><span class="p">,</span> <span class="n">lower_percentile</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s1">&#39;right&#39;</span><span class="p">)</span>
+    <span class="n">upper_percentile_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">cdf</span><span class="p">,</span> <span class="n">upper_percentile</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s1">&#39;right&#39;</span><span class="p">)</span>
+    <span class="c1"># Access corresponding x-values from the sorted PMF</span>
+    <span class="n">lower_percentile_value</span> <span class="o">=</span> <span class="n">pmf</span><span class="p">[</span><span class="n">lower_percentile_idx</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">lower_percentile_idx</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">pmf</span><span class="p">)</span> <span class="k">else</span> <span class="n">pmf</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">upper_percentile_value</span> <span class="o">=</span> <span class="n">pmf</span><span class="p">[</span><span class="n">upper_percentile_idx</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">upper_percentile_idx</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">pmf</span><span class="p">)</span> <span class="k">else</span> <span class="n">pmf</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">lower_percentile_value</span><span class="p">,</span> <span class="n">upper_percentile_value</span></div>
+
+<div class="viewcode-block" id="get_histogram_sketch"><a class="viewcode-back" href="../../lensai_profiler.html#lensai_profiler.metrics.get_histogram_sketch">[docs]</a><span class="k">def</span> <span class="nf">get_histogram_sketch</span><span class="p">(</span><span class="n">sketch</span><span class="p">,</span> <span class="n">num_splits</span><span class="o">=</span><span class="mi">30</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Reads a binary file, deserializes the content, and extracts the PMF.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        sketch: A probabilistic data structure representing the sketch of the distribution.</span>
+<span class="sd">        num_splits: Number of splits for the PMF (default: 30).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A tuple containing x-axis values and the PMF.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">sketch</span><span class="o">.</span><span class="n">is_empty</span><span class="p">():</span>
+        <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+    <span class="n">xmin</span> <span class="o">=</span> <span class="n">sketch</span><span class="o">.</span><span class="n">get_min_value</span><span class="p">()</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">step</span> <span class="o">=</span> <span class="p">(</span><span class="n">sketch</span><span class="o">.</span><span class="n">get_max_value</span><span class="p">()</span> <span class="o">-</span> <span class="n">xmin</span><span class="p">)</span> <span class="o">/</span> <span class="n">num_splits</span>
+    <span class="k">except</span> <span class="ne">ZeroDivisionError</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error: num_splits should be non-zero&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">step</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">step</span> <span class="o">=</span> <span class="mf">0.01</span>
+
+    <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span><span class="n">xmin</span> <span class="o">+</span> <span class="p">(</span><span class="n">i</span> <span class="o">*</span> <span class="n">step</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_splits</span><span class="p">)]</span>
+    <span class="n">pmf</span> <span class="o">=</span> <span class="n">sketch</span><span class="o">.</span><span class="n">get_pmf</span><span class="p">(</span><span class="n">splits</span><span class="p">)</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">splits</span> <span class="o">+</span> <span class="p">[</span><span class="n">sketch</span><span class="o">.</span><span class="n">get_max_value</span><span class="p">()]</span>  <span class="c1"># Append max value for x-axis</span>
+
+    <span class="k">return</span> <span class="n">x</span><span class="p">,</span> <span class="n">pmf</span></div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">Lens AI Profiler</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2024, Venkata Pydipalli.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 7.1.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

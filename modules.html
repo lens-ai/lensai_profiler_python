@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>lensai_profiler &#8212; Lens AI Profiler 1.0.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=4f649999" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=039e1c02" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js?v=af2ce170"></script>
+    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/sphinx_highlight.js?v=4825356b"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="lensai-profiler">
+<h1>lensai_profiler<a class="headerlink" href="#lensai-profiler" title="Permalink to this heading">¶</a></h1>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="lensai_profiler.html">lensai_profiler package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="lensai_profiler.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lensai_profiler.html#module-lensai_profiler.metrics">lensai_profiler.metrics module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.metrics.Metrics"><code class="docutils literal notranslate"><span class="pre">Metrics</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.metrics.Metrics.calculate_brightness"><code class="docutils literal notranslate"><span class="pre">Metrics.calculate_brightness()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.metrics.Metrics.calculate_channel_histogram"><code class="docutils literal notranslate"><span class="pre">Metrics.calculate_channel_histogram()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.metrics.Metrics.calculate_channel_mean"><code class="docutils literal notranslate"><span class="pre">Metrics.calculate_channel_mean()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.metrics.Metrics.calculate_sharpness_laplacian"><code class="docutils literal notranslate"><span class="pre">Metrics.calculate_sharpness_laplacian()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.metrics.Metrics.calculate_snr"><code class="docutils literal notranslate"><span class="pre">Metrics.calculate_snr()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.metrics.Metrics.process_batch"><code class="docutils literal notranslate"><span class="pre">Metrics.process_batch()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.metrics.calculate_percentiles"><code class="docutils literal notranslate"><span class="pre">calculate_percentiles()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.metrics.get_histogram_sketch"><code class="docutils literal notranslate"><span class="pre">get_histogram_sketch()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="lensai_profiler.html#module-lensai_profiler.sketches">lensai_profiler.sketches module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.sketches.Sketches"><code class="docutils literal notranslate"><span class="pre">Sketches</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.sketches.Sketches.compute_thresholds"><code class="docutils literal notranslate"><span class="pre">Sketches.compute_thresholds()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.sketches.Sketches.load_sketches"><code class="docutils literal notranslate"><span class="pre">Sketches.load_sketches()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.sketches.Sketches.pt_update_sketches"><code class="docutils literal notranslate"><span class="pre">Sketches.pt_update_sketches()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.sketches.Sketches.publish_sketches"><code class="docutils literal notranslate"><span class="pre">Sketches.publish_sketches()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.sketches.Sketches.register_metric"><code class="docutils literal notranslate"><span class="pre">Sketches.register_metric()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.sketches.Sketches.save_sketches"><code class="docutils literal notranslate"><span class="pre">Sketches.save_sketches()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.sketches.Sketches.tf_update_sketches"><code class="docutils literal notranslate"><span class="pre">Sketches.tf_update_sketches()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.sketches.Sketches.update_kll_sketch"><code class="docutils literal notranslate"><span class="pre">Sketches.update_kll_sketch()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.sketches.Sketches.update_sketches"><code class="docutils literal notranslate"><span class="pre">Sketches.update_sketches()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="lensai_profiler.html#module-lensai_profiler">Module contents</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.Metrics"><code class="docutils literal notranslate"><span class="pre">Metrics</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.Metrics.calculate_brightness"><code class="docutils literal notranslate"><span class="pre">Metrics.calculate_brightness()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.Metrics.calculate_channel_histogram"><code class="docutils literal notranslate"><span class="pre">Metrics.calculate_channel_histogram()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.Metrics.calculate_channel_mean"><code class="docutils literal notranslate"><span class="pre">Metrics.calculate_channel_mean()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.Metrics.calculate_sharpness_laplacian"><code class="docutils literal notranslate"><span class="pre">Metrics.calculate_sharpness_laplacian()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.Metrics.calculate_snr"><code class="docutils literal notranslate"><span class="pre">Metrics.calculate_snr()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.Metrics.process_batch"><code class="docutils literal notranslate"><span class="pre">Metrics.process_batch()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.Sketches"><code class="docutils literal notranslate"><span class="pre">Sketches</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.Sketches.compute_thresholds"><code class="docutils literal notranslate"><span class="pre">Sketches.compute_thresholds()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.Sketches.load_sketches"><code class="docutils literal notranslate"><span class="pre">Sketches.load_sketches()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.Sketches.pt_update_sketches"><code class="docutils literal notranslate"><span class="pre">Sketches.pt_update_sketches()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.Sketches.publish_sketches"><code class="docutils literal notranslate"><span class="pre">Sketches.publish_sketches()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.Sketches.register_metric"><code class="docutils literal notranslate"><span class="pre">Sketches.register_metric()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.Sketches.save_sketches"><code class="docutils literal notranslate"><span class="pre">Sketches.save_sketches()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.Sketches.tf_update_sketches"><code class="docutils literal notranslate"><span class="pre">Sketches.tf_update_sketches()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.Sketches.update_kll_sketch"><code class="docutils literal notranslate"><span class="pre">Sketches.update_kll_sketch()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.Sketches.update_sketches"><code class="docutils literal notranslate"><span class="pre">Sketches.update_sketches()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.calculate_percentiles"><code class="docutils literal notranslate"><span class="pre">calculate_percentiles()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="lensai_profiler.html#lensai_profiler.get_histogram_sketch"><code class="docutils literal notranslate"><span class="pre">get_histogram_sketch()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">Lens AI Profiler</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2024, Venkata Pydipalli.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 7.1.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+      |
+      <a href="_sources/modules.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
